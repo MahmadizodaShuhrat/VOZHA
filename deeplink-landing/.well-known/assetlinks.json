@@ -1,0 +1,15 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.vozhaomuz",
+      "sha256_cert_fingerprints": [
+        "86:F4:94:9A:4E:E1:49:AB:3F:6E:12:F2:13:CA:1E:65:7E:A5:31:DE:FE:3C:0A:4D:F5:3A:0B:04:F3:45:F8:A2",
+        "B4:3E:F4:41:45:AF:91:61:7D:70:BD:76:4F:A1:0A:1E:3E:23:7B:F4:1F:DA:63:D7:93:63:BD:08:90:85:86:94"
+      ]
+    }
+  }
+]

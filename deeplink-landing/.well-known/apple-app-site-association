@@ -1,0 +1,14 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "B65SR885N5.com.donishsoft.vozhaomuz1",
+        "paths": [
+          "/api/v1/deeplink*",
+          "/api/v1/deeplink/*"
+        ]
+      }
+    ]
+  }
+}

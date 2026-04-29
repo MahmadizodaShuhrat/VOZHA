@@ -1,0 +1,111 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+
+# IntelliJ-related / Android Studio
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code
+.vscode/
+
+# Claude Code
+.claude/settings.local.json
+.claude-session.json
+
+# Flutter / Dart / Pub
+**/dart_tool/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/.pub-cache/
+**/.pub/
+**/build/
+.flutter-devices
+.metadata
+pubspec.lock.bak
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Android
+android/.gradle
+android/captures/
+android/local.properties
+android/**/GeneratedPluginRegistrant.java
+android/.kotlin/
+android/key.properties
+*.jks
+*.keystore
+android/app/google-services.json
+android/app/google-services-desktop.json
+
+# iOS / Xcode
+ios/**/dgph
+ios/**/Pods/
+ios/.symlinks/
+ios/Flutter/.last_build_id
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/app.flx
+ios/Flutter/app.zip
+ios/Flutter/flutter_assets/
+ios/Flutter/flutter_export_environment.sh
+ios/ServiceDefinitions.json
+ios/Runner/GeneratedPluginRegistrant.*
+ios/GoogleService-Info.plist
+
+# macOS
+macos/**/Pods/
+macos/Flutter/ephemeral/
+macos/Runner/GeneratedPluginRegistrant.swift
+**/Flutter/ephemeral/
+**/Pods/
+
+# Windows
+windows/flutter/ephemeral/
+
+# Linux
+linux/flutter/ephemeral/
+
+# Web
+web/main.dart.js
+web/main.dart.js.map
+web/main.dart.js.deps
+
+# Coverage
+coverage/
+
+# Backups
+__MACOSX/
+*.bak
+
+# Secrets — NEVER commit
+dart_defines.env
+*.env
+!*.env.example
+.env.local
+.env.production
+**/google-services.json
+**/GoogleService-Info.plist

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="tg">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#2E90FA">
+  <title>VozhaOmuz — Ҳамроҳшавӣ ба Мусобиқа</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(180deg, #F2F7FF 0%, #E0EFFF 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      color: #1D2939;
+    }
+    .card {
+      background: white;
+      border-radius: 24px;
+      padding: 40px 28px;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(16, 24, 40, 0.12);
+      text-align: center;
+    }
+    .logo {
+      width: 96px;
+      height: 96px;
+      margin: 0 auto 24px;
+      background: #FEDF89;
+      border-radius: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 42px;
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      color: #667085;
+      font-size: 15px;
+      margin-bottom: 8px;
+    }
+    .room-code {
+      display: inline-block;
+      background: #FEDF89;
+      color: #1D2939;
+      padding: 10px 24px;
+      border-radius: 12px;
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: 4px;
+      margin: 12px 0 28px;
+    }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 16px;
+      border-radius: 14px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 16px;
+      margin-bottom: 10px;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary {
+      background: #2E90FA;
+      color: white;
+      box-shadow: 0 4px 0 #1570EF;
+    }
+    .btn-secondary {
+      background: white;
+      color: #1D2939;
+      border: 1.5px solid #D0D5DD;
+    }
+    .stores {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .stores .btn { margin-bottom: 0; flex: 1; font-size: 13px; padding: 12px 8px; }
+    .help {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid #EAECF0;
+      font-size: 13px;
+      color: #667085;
+      line-height: 1.5;
+    }
+    .help strong { color: #1D2939; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">🦉</div>
+    <h1>Ҳамроҳ шавед ба Мусобиқа</h1>
+    <p class="subtitle">Рамзи хона:</p>
+    <div class="room-code" id="roomId">—</div>
+
+    <a id="openApp" class="btn btn-primary" href="#">Кушодани VozhaOmuz</a>
+
+    <div class="stores">
+      <a href="https://play.google.com/store/apps/details?id=com.vozhaomuz" class="btn btn-secondary">Google Play</a>
+      <a href="https://apps.apple.com/app/vozhaomuz" class="btn btn-secondary">App Store</a>
+    </div>
+
+    <div class="help" id="helpBox">
+      <strong>Апп кушода намешавад?</strong><br>
+      Тугмаи "Кушодани VozhaOmuz"-ро пахш кунед. Агар апп насб нест, аз Google Play / App Store зеркашӣ кунед.
+    </div>
+  </div>
+
+  <script>
+    // Room code from query string
+    const params = new URLSearchParams(window.location.search);
+    const roomId = params.get('room_id') || params.get('room') || '';
+    const page = params.get('page') || 'battle';
+
+    if (roomId) {
+      document.getElementById('roomId').textContent = roomId;
+    }
+
+    // Build custom scheme URL
+    const customLink = `vozhaomuz://${page}?room_id=${encodeURIComponent(roomId)}`;
+    document.getElementById('openApp').href = customLink;
+
+    // Detect platform
+    const ua = navigator.userAgent.toLowerCase();
+    const isAndroid = ua.includes('android');
+    const isIOS = /iphone|ipad|ipod/.test(ua);
+    const isMobile = isAndroid || isIOS;
+
+    // Auto-attempt to open the app on mobile. If the user has the app,
+    // the custom scheme hands off and this tab becomes background. If
+    // not, the setTimeout below fires and we redirect to the store.
+    if (isMobile && roomId) {
+      let didHide = false;
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) didHide = true;
+      });
+
+      // First try: fire the custom scheme after a short delay so the
+      // page renders first (otherwise on Telegram WebView the redirect
+      // races with the DOM and the user sees a flash of nothing).
+      setTimeout(() => {
+        window.location.href = customLink;
+      }, 400);
+
+      // Fallback: if nothing opened after 2.5s (tab still visible),
+      // assume the app isn't installed and offer the store.
+      setTimeout(() => {
+        if (didHide) return; // App opened, tab went background
+        if (isAndroid) {
+          window.location.href = 'https://play.google.com/store/apps/details?id=com.vozhaomuz';
+        } else if (isIOS) {
+          window.location.href = 'https://apps.apple.com/app/vozhaomuz';
+        }
+      }, 2500);
+    }
+  </script>
+</body>
+</html>

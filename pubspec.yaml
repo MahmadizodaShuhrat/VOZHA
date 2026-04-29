@@ -1,0 +1,149 @@
+name: vozhaomuz
+description: "VozhaOmuz - English vocabulary learning app"
+publish_to: 'none'
+version: 2.61.0+180
+
+environment:
+  sdk: ^3.8.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  flutter_localizations:
+    sdk: flutter
+
+  # State Management
+  hooks_riverpod: ^3.1.0
+  flutter_hooks: ^0.21.3+1
+  riverpod_annotation: ^4.0.0
+
+  # Networking
+  dio: ^5.4.0
+  web_socket_channel: ^3.0.3
+  connectivity_plus: ^7.0.0
+
+  # Storage & Database
+  shared_preferences: ^2.2.2
+  flutter_secure_storage: ^10.0.0
+  sqflite: ^2.3.2
+  path_provider: ^2.1.2
+  path_provider_android: 2.2.12  # Pin: 2.3.x uses JNI which breaks in release (ClassNotFoundException PathUtils)
+  path: ^1.9.0
+
+  # Localization
+  easy_localization: ^3.0.5
+  intl: ^0.20.2
+
+  # UI Components
+  flutter_svg: ^2.0.10+1
+  cached_network_image: ^3.3.1
+  shimmer: ^3.0.0
+  lottie: ^3.1.0
+  flutter_animate: ^4.5.0
+
+  # Audio & Speech
+  audio_session: ^0.2.2
+  speech_to_text: ^7.3.0
+  flutter_tts: ^4.0.2
+  record: ^6.2.0
+
+  # Firebase - latest versions for GoogleUtilities 8.0 compatibility
+  firebase_core: ^4.4.0
+  firebase_auth: ^6.1.4
+  firebase_messaging: ^16.1.1
+  firebase_analytics: ^12.1.1
+  firebase_crashlytics: ^5.0.7
+
+  # Authentication
+  google_sign_in: ^7.2.0
+  sign_in_with_apple: ^7.0.1
+
+  # Navigation
+  go_router: ^17.1.0
+
+  # Utilities
+  freezed_annotation: ^3.1.0
+  json_annotation: ^4.8.1
+  equatable: ^2.0.5
+  crypto: ^3.0.3
+  uuid: ^4.3.3
+  collection: ^1.18.0
+  
+  # Image handling
+  image_picker: ^1.0.7
+  image: ^4.3.0
+  
+  # Permissions
+  permission_handler: ^12.0.1
+  gap: ^3.0.1
+  device_info_plus: ^12.3.0
+  http: ^1.6.0
+  audioplayers: ^6.5.1
+  percent_indicator: ^4.2.5
+  crop_your_image: ^2.0.0
+  flutter_appauth: ^12.0.0
+  logger: ^2.6.2
+  archive: ^4.0.7
+  country_flags: ^4.1.2
+  carousel_slider: ^5.1.1
+  flutter_slidable: ^4.0.3
+  google_fonts: ^8.0.1
+  url_launcher: ^6.3.2
+  webview_flutter: ^4.10.0
+  webview_flutter_android: ^4.3.0
+  app_links: ^7.0.0
+  flutter_web_auth_2: ^5.0.1
+  share_plus: ^12.0.1
+  flutter_screenutil: ^5.9.3
+  file_picker: ^10.3.10
+  unity_ads_plugin: ^0.3.29
+  flutter_local_notifications: ^21.0.0-dev.2
+  timezone: ^0.11.0
+  in_app_review: ^2.0.11
+  package_info_plus: ^9.0.0
+  pdf: ^3.11.1
+  printing: ^5.13.4
+  video_player: ^2.9.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  
+  # Code generation
+  build_runner: ^2.4.8
+  freezed: ^3.2.3
+  json_serializable: ^6.7.1
+  riverpod_generator: ^4.0.0+1
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/IconApp.png"
+  min_sdk_android: 21
+  remove_alpha_ios: true
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/translate/
+    - assets/courses/
+    - assets/courses/english_a1/
+    - assets/images/
+    - assets/images/uimotivation/
+    - assets/images/UIStepsSignUp/
+    - assets/images/UIHome/
+    - assets/images/battle/
+    - assets/images/battle/1st/
+    - assets/images/battle/2nd/
+    - assets/images/battle/3rd/
+    - assets/sounds/
+    - assets/images/Textures/Banners/
+
+# Force compatible transitive dependency versions for Flutter 3.41.6 / Dart 3.11.4
+dependency_overrides:
+  xml: 6.5.0
+  petitparser: 6.0.2

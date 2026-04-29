@@ -1,0 +1,349 @@
+{
+  "$comment": "Provisional backend payload. Each module is now a 'lesson hub': mainVideo (intro for the whole module) + sub-lessons (each with its own video / vocabulary / mini-test) + finalTest (locked until every sub-lesson is completed). The first hub ('Урок 1 — Новичок') is filled out fully so the whole loop can be tested end-to-end and exercises every supported game type at least once across the course.",
+  "id": "english_a1",
+  "title": "Английский с 0",
+  "subtitle": "Полная программа обучения с нуля",
+  "level": "A1 — Beginner",
+  "rating": 4.9,
+  "students": 1240,
+  "language": "en",
+  "publishedAt": "2024-03-10",
+  "totalMinutes": 600,
+  "instructor": {
+    "name": "Саади Тоирзода",
+    "role": "Преподаватель",
+    "avatarUrl": null
+  },
+  "coverUrl": null,
+  "previewUrl": "https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4",
+  "description": "This English course combines 4 essential modules for complete beginners:\n\nEnglish 101 — Basic Words & Phrases\nLearn greetings, numbers, days of the week, and everyday expressions.\n\nEnglish 102 — Daily Conversations\nPractice simple dialogues for shopping, traveling, and meeting people.\n\nEnglish 103 — Grammar Basics\nUnderstand simple tenses, sentence structure, and question forms.\n\nEnglish 104 — Listening & Pronunciation Practice\nTrain your ear and improve your accent with slow and clear audio.",
+  "modules": [
+    {
+      "id": "lesson1_beginner",
+      "title": "Алфавит, приветствия и числа",
+      "subtitle": "НОВИЧОК — УРОК 1",
+      "mainVideo": {
+        "url": "https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4",
+        "thumbnail": null
+      },
+      "lessons": [
+        {
+          "id": "l1_greetings",
+          "type": "video_with_words",
+          "title": "Алфавит и приветствия",
+          "durationLabel": "8 мин 45 сек",
+          "durationSeconds": 525,
+          "status": "current",
+          "video": {
+            "url": "https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4",
+            "thumbnail": null
+          },
+          "words": [
+            {
+              "id": 900101,
+              "word": "hello",
+              "translation": "привет",
+              "transcription": "[həˈloʊ]",
+              "example": "Hello! How are you?",
+              "exampleTranslation": "Привет! Как дела?"
+            },
+            {
+              "id": 900102,
+              "word": "goodbye",
+              "translation": "до свидания",
+              "transcription": "[ɡʊdˈbaɪ]",
+              "example": "Goodbye, see you tomorrow.",
+              "exampleTranslation": "До свидания, увидимся завтра."
+            },
+            {
+              "id": 900103,
+              "word": "yes",
+              "translation": "да",
+              "transcription": "[jes]",
+              "example": "Yes, I understand.",
+              "exampleTranslation": "Да, я понимаю."
+            },
+            {
+              "id": 900104,
+              "word": "no",
+              "translation": "нет",
+              "transcription": "[noʊ]",
+              "example": "No, thank you.",
+              "exampleTranslation": "Нет, спасибо."
+            }
+          ],
+          "test": {
+            "test_title": "Алфавит и приветствия",
+            "language": "en",
+            "sections": [
+              {
+                "id": "g1_choose",
+                "title": "Выберите перевод",
+                "questions": [
+                  {
+                    "id": "g1_q1",
+                    "type": "MultiChoiceGame",
+                    "title": "Выберите правильный перевод",
+                    "data_source": [
+                      { "text": "hello",   "answers": ["привет", "до свидания", "спасибо", "пожалуйста"], "correct_answer": "привет" },
+                      { "text": "goodbye", "answers": ["извините", "спасибо", "до свидания", "пожалуйста"], "correct_answer": "до свидания" },
+                      { "text": "yes",     "answers": ["нет", "да", "имя", "привет"], "correct_answer": "да" },
+                      { "text": "no",      "answers": ["нет", "да", "спасибо", "извините"], "correct_answer": "нет" }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "g1_match",
+                "title": "Соедините пары",
+                "questions": [
+                  {
+                    "id": "g1_q2",
+                    "type": "MatchingGame",
+                    "title": "Соедините слово с переводом",
+                    "data_source": [
+                      { "text": "hello",   "correct_answer": "привет" },
+                      { "text": "goodbye", "correct_answer": "до свидания" },
+                      { "text": "yes",     "correct_answer": "да" },
+                      { "text": "no",      "correct_answer": "нет" }
+                    ],
+                    "word_bank": ["привет", "до свидания", "да", "нет"]
+                  }
+                ]
+              },
+              {
+                "id": "g1_collect",
+                "title": "Соберите слово",
+                "questions": [
+                  {
+                    "id": "g1_q3",
+                    "type": "CollectWords",
+                    "title": "Соберите английское слово из букв",
+                    "data_source": [
+                      { "text": "привет",      "correct_answer": "hello" },
+                      { "text": "до свидания", "correct_answer": "goodbye" }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "l1_numbers",
+          "type": "video_with_words",
+          "title": "Счёт от 1 до 5",
+          "durationLabel": "5 мин 23 сек",
+          "durationSeconds": 323,
+          "status": "locked",
+          "video": {
+            "url": "https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4",
+            "thumbnail": null
+          },
+          "words": [
+            {
+              "id": 900201,
+              "word": "one",
+              "translation": "один",
+              "transcription": "[wʌn]",
+              "example": "I have one cat.",
+              "exampleTranslation": "У меня один кот."
+            },
+            {
+              "id": 900202,
+              "word": "two",
+              "translation": "два",
+              "transcription": "[tuː]",
+              "example": "Two cups of tea.",
+              "exampleTranslation": "Две чашки чая."
+            },
+            {
+              "id": 900203,
+              "word": "three",
+              "translation": "три",
+              "transcription": "[θriː]",
+              "example": "Three apples on the table.",
+              "exampleTranslation": "Три яблока на столе."
+            },
+            {
+              "id": 900204,
+              "word": "four",
+              "translation": "четыре",
+              "transcription": "[fɔːr]",
+              "example": "Four wheels on a car.",
+              "exampleTranslation": "Четыре колеса у машины."
+            },
+            {
+              "id": 900205,
+              "word": "five",
+              "translation": "пять",
+              "transcription": "[faɪv]",
+              "example": "Five fingers on my hand.",
+              "exampleTranslation": "Пять пальцев на моей руке."
+            }
+          ],
+          "test": {
+            "test_title": "Счёт от 1 до 5",
+            "language": "en",
+            "sections": [
+              {
+                "id": "n1_choose",
+                "title": "Выберите число",
+                "questions": [
+                  {
+                    "id": "n1_q1",
+                    "type": "MultiChoiceGame",
+                    "title": "Выберите правильный перевод",
+                    "data_source": [
+                      { "text": "one",   "answers": ["один", "два", "три", "четыре"], "correct_answer": "один" },
+                      { "text": "three", "answers": ["один", "три", "пять", "два"], "correct_answer": "три" },
+                      { "text": "five",  "answers": ["четыре", "три", "пять", "два"], "correct_answer": "пять" }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "n1_select",
+                "title": "Что значит «two»?",
+                "questions": [
+                  {
+                    "id": "n1_q2",
+                    "type": "SelectAnswers",
+                    "title": "Выберите правильный перевод слова «two»",
+                    "data_source": [
+                      { "text": "two", "answers": ["один", "два", "три", "четыре"], "correct_answer": "два" }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "n1_match",
+                "title": "Соедините числа",
+                "questions": [
+                  {
+                    "id": "n1_q3",
+                    "type": "MatchingGame",
+                    "title": "Соедините число с переводом",
+                    "data_source": [
+                      { "text": "one",   "correct_answer": "один" },
+                      { "text": "two",   "correct_answer": "два" },
+                      { "text": "three", "correct_answer": "три" },
+                      { "text": "four",  "correct_answer": "четыре" },
+                      { "text": "five",  "correct_answer": "пять" }
+                    ],
+                    "word_bank": ["один", "два", "три", "четыре", "пять"]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "finalTest": {
+        "test_title": "Урок 1 — Финальный тест",
+        "language": "en",
+        "sections": [
+          {
+            "id": "f1_mix",
+            "title": "Смешанный тест по уроку",
+            "questions": [
+              {
+                "id": "f1_q1",
+                "type": "MultiChoiceGame",
+                "title": "Выберите правильный перевод",
+                "data_source": [
+                  { "text": "hello", "answers": ["один", "привет", "три", "до свидания"], "correct_answer": "привет" },
+                  { "text": "five",  "answers": ["четыре", "три", "пять", "два"], "correct_answer": "пять" },
+                  { "text": "yes",   "answers": ["нет", "да", "три", "привет"], "correct_answer": "да" }
+                ]
+              },
+              {
+                "id": "f1_q2",
+                "type": "MatchingGame",
+                "title": "Соедините слова с переводами",
+                "data_source": [
+                  { "text": "hello", "correct_answer": "привет" },
+                  { "text": "no",    "correct_answer": "нет" },
+                  { "text": "two",   "correct_answer": "два" },
+                  { "text": "four",  "correct_answer": "четыре" }
+                ],
+                "word_bank": ["привет", "нет", "два", "четыре"]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "lesson2_basics",
+      "title": "Базовые слова и знакомства",
+      "subtitle": "НОВИЧОК — УРОК 2",
+      "mainVideo": {
+        "url": "https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4",
+        "thumbnail": null
+      },
+      "lessons": [
+        {
+          "id": "l2_intro",
+          "type": "video_with_words",
+          "title": "My name is...",
+          "durationLabel": "12 мин",
+          "durationSeconds": 720,
+          "status": "locked",
+          "video": {
+            "url": "https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4",
+            "thumbnail": null
+          },
+          "words": [
+            { "id": 900301, "word": "name",   "translation": "имя",        "transcription": "[neɪm]",   "example": "My name is Anna.",     "exampleTranslation": "Меня зовут Анна." },
+            { "id": 900302, "word": "please", "translation": "пожалуйста", "transcription": "[pliːz]",  "example": "Please, help me.",     "exampleTranslation": "Пожалуйста, помогите мне." },
+            { "id": 900303, "word": "thanks", "translation": "спасибо",    "transcription": "[θæŋks]", "example": "Thanks a lot!",        "exampleTranslation": "Большое спасибо!" },
+            { "id": 900304, "word": "sorry",  "translation": "извините",   "transcription": "[ˈsɒri]",  "example": "Sorry, I'm late.",     "exampleTranslation": "Извините, я опоздал." }
+          ],
+          "test": {
+            "test_title": "My name is",
+            "language": "en",
+            "sections": [
+              {
+                "id": "i2_choose",
+                "title": "Выберите перевод",
+                "questions": [
+                  {
+                    "id": "i2_q1",
+                    "type": "MultiChoiceGame",
+                    "title": "Выберите правильный перевод",
+                    "data_source": [
+                      { "text": "name",   "answers": ["имя", "извините", "пожалуйста", "спасибо"], "correct_answer": "имя" },
+                      { "text": "please", "answers": ["пожалуйста", "спасибо", "имя", "извините"], "correct_answer": "пожалуйста" },
+                      { "text": "thanks", "answers": ["извините", "пожалуйста", "спасибо", "до свидания"], "correct_answer": "спасибо" },
+                      { "text": "sorry",  "answers": ["извините", "имя", "да", "пожалуйста"], "correct_answer": "извините" }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "i2_match",
+                "title": "Соедините пары",
+                "questions": [
+                  {
+                    "id": "i2_q2",
+                    "type": "MatchingGame",
+                    "title": "Соедините слово с переводом",
+                    "data_source": [
+                      { "text": "name",   "correct_answer": "имя" },
+                      { "text": "please", "correct_answer": "пожалуйста" },
+                      { "text": "thanks", "correct_answer": "спасибо" },
+                      { "text": "sorry",  "correct_answer": "извините" }
+                    ],
+                    "word_bank": ["имя", "пожалуйста", "спасибо", "извините"]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "finalTest": null
+    }
+  ]
+}

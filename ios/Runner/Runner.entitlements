@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
+	<!--
+	  Universal Link support for battle invites on iOS. Backend hosts
+	  /.well-known/apple-app-site-association at api.vozhaomuz.com with
+	  this app's Team ID + bundle identifier, so iOS verifies the
+	  domain and opens the app directly when a user taps
+	  https://api.vozhaomuz.com/api/v1/deeplink?page=battle&room_id=…
+	-->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:api.vozhaomuz.com</string>
+	</array>
+</dict>
+</plist>
