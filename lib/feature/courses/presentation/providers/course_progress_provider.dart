@@ -4,9 +4,10 @@ import 'package:vozhaomuz/feature/courses/data/repository/course_progress_reposi
 import 'package:vozhaomuz/feature/courses/presentation/providers/course_fixture_provider.dart';
 
 /// Single repository instance. Persists to SharedPreferences for now;
-/// swap with an API-backed implementation when the backend ships.
+/// swap the override with a remote-backed implementation when the
+/// backend ships and consumers don't need to change.
 final courseProgressRepositoryProvider =
-    Provider<CourseProgressRepository>((_) => CourseProgressRepository());
+    Provider<CourseProgressRepository>((_) => LocalCourseProgressRepository());
 
 /// Set of completed lesson IDs for a given course. The first time a
 /// user opens a course, it seeds itself from the JSON's

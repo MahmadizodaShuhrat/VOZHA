@@ -2,18 +2,31 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Tiny key/value store for "which lessons has the user completed in
-/// course X?". Exists so we can track progress locally until the
-/// backend's user-progress API ships — once that happens, swap this
-/// for the API call and the UI keeps working.
+/// Per-course "which lessons has the user completed?" tracker.
+/// Implementations decide where the data lives. The rest of the app
+/// only talks to this interface so we can swap the storage backend
+/// (local → remote) without touching consumers.
+abstract class CourseProgressRepository {
+  Future<Set<String>> load(String courseId);
+  Future<void> save(String courseId, Set<String> completed);
+
+  /// Mark one lesson as completed and persist. Returns the new full
+  /// set so callers can update their UI immediately. Idempotent —
+  /// safe to call twice for the same lesson.
+  Future<Set<String>> markCompleted(String courseId, String lessonId);
+}
+
+/// SharedPreferences-backed implementation used while the backend's
+/// user-progress API is in development.
 ///
 /// Storage shape per course (key `course_progress_<id>`):
 /// `{"completed":["welcome","first_words", ...]}`.
-class CourseProgressRepository {
-  CourseProgressRepository();
+class LocalCourseProgressRepository implements CourseProgressRepository {
+  LocalCourseProgressRepository();
 
   String _key(String courseId) => 'course_progress_$courseId';
 
+  @override
   Future<Set<String>> load(String courseId) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_key(courseId));
@@ -28,6 +41,7 @@ class CourseProgressRepository {
     }
   }
 
+  @override
   Future<void> save(String courseId, Set<String> completed) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
@@ -36,8 +50,7 @@ class CourseProgressRepository {
     );
   }
 
-  /// Mark one lesson as completed and persist. Returns the new full
-  /// set so callers can update their UI immediately.
+  @override
   Future<Set<String>> markCompleted(String courseId, String lessonId) async {
     final current = await load(courseId);
     final updated = {...current, lessonId};

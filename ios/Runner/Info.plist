@@ -90,6 +90,21 @@
 				<string>vozhaomuz</string>
 			</array>
 		</dict>
+		<!--
+		  Google Sign-In OAuth callback URL. Must match the
+		  REVERSED_CLIENT_ID in GoogleService-Info.plist verbatim,
+		  otherwise the post-sign-in redirect can't return to the
+		  app and Google's SDK reports "user cancelled". Project
+		  `vozhaomuzz`.
+		-->
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>google_sign_in_callback</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.521063033191-1k7vop3uv6c627tgrofdnrfiatnfbvpd</string>
+			</array>
+		</dict>
 	</array>
 </dict>
 </plist>

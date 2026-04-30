@@ -99,7 +99,6 @@ class _WriteWithAIGameWidgetState extends State<WriteWithAIGameWidget> {
         // ── Story text (read before answering) ──
         if (_storyText != null && _storyText!.isNotEmpty) _buildStorySection(),
 
-
         // Questions with text input
         for (int i = 0; i < _questions.length; i++) ...[
           _buildQuestionBlock(i),
@@ -281,32 +280,40 @@ class _WriteWithAIGameWidgetState extends State<WriteWithAIGameWidget> {
 
     for (final match in regex.allMatches(html)) {
       if (match.start > lastEnd) {
-        spans.add(TextSpan(
-          text: html.substring(lastEnd, match.start),
-          style: baseStyle.copyWith(
-            fontWeight: isBold ? FontWeight.w700 : baseStyle.fontWeight,
-            fontStyle: isItalic ? FontStyle.italic : baseStyle.fontStyle,
+        spans.add(
+          TextSpan(
+            text: html.substring(lastEnd, match.start),
+            style: baseStyle.copyWith(
+              fontWeight: isBold ? FontWeight.w700 : baseStyle.fontWeight,
+              fontStyle: isItalic ? FontStyle.italic : baseStyle.fontStyle,
+            ),
           ),
-        ));
+        );
       }
       final isClosing = match.group(1) == '/';
       final tag = match.group(2)!.toLowerCase();
-      if (tag == 'b' || tag == 'strong') isBold = !isClosing;
-      else if (tag == 'i' || tag == 'em') isItalic = !isClosing;
+      if (tag == 'b' || tag == 'strong')
+        isBold = !isClosing;
+      else if (tag == 'i' || tag == 'em')
+        isItalic = !isClosing;
       lastEnd = match.end;
     }
 
     if (lastEnd < html.length) {
-      spans.add(TextSpan(
-        text: html.substring(lastEnd),
-        style: baseStyle.copyWith(
-          fontWeight: isBold ? FontWeight.w700 : baseStyle.fontWeight,
-          fontStyle: isItalic ? FontStyle.italic : baseStyle.fontStyle,
+      spans.add(
+        TextSpan(
+          text: html.substring(lastEnd),
+          style: baseStyle.copyWith(
+            fontWeight: isBold ? FontWeight.w700 : baseStyle.fontWeight,
+            fontStyle: isItalic ? FontStyle.italic : baseStyle.fontStyle,
+          ),
         ),
-      ));
+      );
     }
 
-    return spans.isEmpty ? TextSpan(text: html, style: baseStyle) : TextSpan(children: spans);
+    return spans.isEmpty
+        ? TextSpan(text: html, style: baseStyle)
+        : TextSpan(children: spans);
   }
 
   // ════════════════════════════════════════
@@ -439,10 +446,7 @@ class _WriteWithAIGameWidgetState extends State<WriteWithAIGameWidget> {
       builder: (context, value, child) {
         return Opacity(
           opacity: value.clamp(0.0, 1.0),
-          child: Transform.scale(
-            scale: 0.8 + (0.2 * value),
-            child: child,
-          ),
+          child: Transform.scale(scale: 0.8 + (0.2 * value), child: child),
         );
       },
       child: Column(
@@ -452,7 +456,10 @@ class _WriteWithAIGameWidgetState extends State<WriteWithAIGameWidget> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: scoreColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
@@ -493,137 +500,143 @@ class _WriteWithAIGameWidgetState extends State<WriteWithAIGameWidget> {
           ),
           const SizedBox(height: 8),
 
-        // ── User's answer ──
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'your_answer'.tr(),
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade500,
-                  letterSpacing: 0.3,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _controllers[index].text,
-                style: const TextStyle(fontSize: 14, color: Color(0xFF334155)),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 6),
-
-        // ── Correct answer ──
-        if (result.correctAnswer != null && result.correctAnswer!.isNotEmpty)
+          // ── User's answer ──
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFF0FDF4),
+              color: const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: const Color(0xFF22C55E).withOpacity(0.3),
-              ),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.check_circle,
-                      color: Color(0xFF22C55E),
-                      size: 14,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'correct_answer_label'.tr(),
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF22C55E).withOpacity(0.8),
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ],
+                Text(
+                  'your_answer'.tr(),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade500,
+                    letterSpacing: 0.3,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  result.correctAnswer!,
+                  _controllers[index].text,
                   style: const TextStyle(
                     fontSize: 14,
-                    color: Color(0xFF166534),
-                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF334155),
                   ),
                 ),
               ],
             ),
           ),
+          const SizedBox(height: 6),
 
-        // ── Mistakes button ──
-        if (result.mistakes != null && result.mistakes!.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          GestureDetector(
-            onTap: () => _showMistakesModal(result.mistakes!),
-            child: Container(
+          // ── Correct answer ──
+          if (result.correctAnswer != null && result.correctAnswer!.isNotEmpty)
+            Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFF7ED),
+                color: const Color(0xFFF0FDF4),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: const Color(0xFFF59E0B).withOpacity(0.3),
+                  color: const Color(0xFF22C55E).withOpacity(0.3),
                 ),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF59E0B),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: const Icon(
-                      Icons.lightbulb_outline,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'errors_and_tips'.tr(),
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF92400E),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.check_circle,
+                        color: Color(0xFF22C55E),
+                        size: 14,
                       ),
-                    ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'correct_answer_label'.tr(),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF22C55E).withOpacity(0.8),
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ],
                   ),
-                  Icon(
-                    Icons.chevron_right,
-                    color: const Color(0xFFF59E0B).withOpacity(0.6),
-                    size: 20,
+                  const SizedBox(height: 4),
+                  Text(
+                    result.correctAnswer!,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF166534),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
+
+          // ── Mistakes button ──
+          if (result.mistakes != null && result.mistakes!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () => _showMistakesModal(result.mistakes!),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7ED),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: const Color(0xFFF59E0B).withOpacity(0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF59E0B),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(
+                        Icons.lightbulb_outline,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'errors_and_tips'.tr(),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF92400E),
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right,
+                      color: const Color(0xFFF59E0B).withOpacity(0.6),
+                      size: 20,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
-      ],
-    ),
+      ),
     );
   }
 
@@ -690,8 +703,10 @@ class _WriteWithAIGameWidgetState extends State<WriteWithAIGameWidget> {
           // (667pt) 65 % = 433pt — with status bar + handle + header
           // the mistakes list would be truncated. Clamp also avoids an
           // oversized sheet on tall phones / foldables.
-          maxHeight: (MediaQuery.of(ctx).size.height * 0.65)
-              .clamp(320.0, 620.0),
+          maxHeight: (MediaQuery.of(ctx).size.height * 0.65).clamp(
+            320.0,
+            620.0,
+          ),
         ),
         decoration: const BoxDecoration(
           color: Colors.white,

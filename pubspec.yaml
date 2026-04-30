@@ -105,6 +105,10 @@ dependencies:
   pdf: ^3.11.1
   printing: ^5.13.4
   video_player: ^2.9.2
+  # Pure-Android secure flag wrapper. Used to block screenshots /
+  # screen recording on lesson video pages so the course content
+  # can't be trivially captured.
+  flutter_windowmanager_plus: ^1.0.1
 
 dev_dependencies:
   flutter_test:

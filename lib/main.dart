@@ -16,6 +16,7 @@ import 'core/l10n/tajik_cupertino_localizations.dart';
 import 'core/core.dart';
 import 'core/services/connectivity_service.dart';
 import 'core/services/deep_link_service.dart';
+import 'core/services/fcm_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/unity_ad_service.dart';
 import 'app/router/app_router.dart';
@@ -38,21 +39,47 @@ Future<void> main() async {
   }
 
   // ── Critical init (must complete before app starts) ──
+  // Initialize Firebase. Android/iOS auto-init Firebase natively from
+  // `google-services.json` / `GoogleService-Info.plist`, so calling
+  // `initializeApp()` after that throws `[core/duplicate-app]`. We
+  // skip the redundant init when a default app already exists — that
+  // way the rest of the bootstrap (Crashlytics, FCM) still runs even
+  // though native already did the heavy lifting.
   try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform)
-        .timeout(const Duration(seconds: 10));
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      ).timeout(const Duration(seconds: 10));
+    }
+  } catch (e) {
+    debugPrint('⚠️ Firebase init failed: $e');
+  }
 
-    // ── Crashlytics: catch all errors in release mode ──
+  // ── Crashlytics: catch all errors in release mode ──
+  // (Outside the try/catch above so a duplicate-app warning doesn't
+  // skip Crashlytics setup.)
+  try {
     if (!kDebugMode) {
-      FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+      FlutterError.onError =
+          FirebaseCrashlytics.instance.recordFlutterFatalError;
       PlatformDispatcher.instance.onError = (error, stack) {
         FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
         return true;
       };
     }
   } catch (e) {
-    debugPrint('⚠️ Firebase init failed: $e');
+    debugPrint('⚠️ Crashlytics init failed: $e');
   }
+
+  // ── FCM: register token + listen for incoming pushes ──
+  // Fire-and-forget so a slow APNs handshake on iOS can't delay the
+  // splash. Token registration with the backend happens later, once
+  // the user is authenticated (handled by AuthSessionHandler).
+  unawaited(
+    FcmService.instance.init().catchError(
+      (e) => debugPrint('⚠️ FCM init failed: $e'),
+    ),
+  );
 
   await EasyLocalization.ensureInitialized();
   await StorageService.instance.init();

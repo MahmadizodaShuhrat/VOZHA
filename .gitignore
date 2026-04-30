@@ -108,4 +108,8 @@ dart_defines.env
 .env.local
 .env.production
 **/google-services.json
+**/google-services.xml
 **/GoogleService-Info.plist
+
+# Legacy Unity project (pre-migration) — contains its own keys
+Assets_Unity3D/

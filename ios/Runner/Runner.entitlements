@@ -7,6 +7,15 @@
 		<string>Default</string>
 	</array>
 	<!--
+	  APNs environment. `development` is used for builds installed via
+	  Xcode / TestFlight; archived App Store builds automatically get
+	  switched to `production` by Xcode at archive time. If you need
+	  push notifications on a release build, change this to
+	  `production` before archiving.
+	-->
+	<key>aps-environment</key>
+	<string>development</string>
+	<!--
 	  Universal Link support for battle invites on iOS. Backend hosts
 	  /.well-known/apple-app-site-association at api.vozhaomuz.com with
 	  this app's Team ID + bundle identifier, so iOS verifies the

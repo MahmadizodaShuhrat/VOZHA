@@ -244,8 +244,8 @@
         "language": "en",
         "sections": [
           {
-            "id": "f1_mix",
-            "title": "Смешанный тест по уроку",
+            "id": "f1_choose",
+            "title": "Выбор перевода",
             "questions": [
               {
                 "id": "f1_q1",
@@ -256,7 +256,13 @@
                   { "text": "five",  "answers": ["четыре", "три", "пять", "два"], "correct_answer": "пять" },
                   { "text": "yes",   "answers": ["нет", "да", "три", "привет"], "correct_answer": "да" }
                 ]
-              },
+              }
+            ]
+          },
+          {
+            "id": "f1_match",
+            "title": "Соединение",
+            "questions": [
               {
                 "id": "f1_q2",
                 "type": "MatchingGame",
@@ -268,6 +274,91 @@
                   { "text": "four",  "correct_answer": "четыре" }
                 ],
                 "word_bank": ["привет", "нет", "два", "четыре"]
+              }
+            ]
+          },
+          {
+            "id": "f1_fill",
+            "title": "Заполните пропуски",
+            "questions": [
+              {
+                "id": "f1_q3",
+                "type": "FillBlankGame",
+                "title": "Введите пропущенное слово",
+                "data_source": [
+                  {
+                    "text": "____, how are you?",
+                    "blanks": [{ "correct_answer": "Hello" }]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "f1_order",
+            "title": "Расставьте по порядку",
+            "questions": [
+              {
+                "id": "f1_q4",
+                "type": "Ordering",
+                "title": "Соберите числа от одного до пяти",
+                "data_source": [
+                  {
+                    "text": "Numbers in order",
+                    "correct_answers": ["one", "two", "three", "four", "five"]
+                  }
+                ],
+                "word_bank": ["three", "one", "five", "two", "four"]
+              }
+            ]
+          },
+          {
+            "id": "f1_dropdown",
+            "title": "Выберите вариант",
+            "questions": [
+              {
+                "id": "f1_q5",
+                "type": "DropDownGame",
+                "title": "Заполните предложение",
+                "data_source": [
+                  {
+                    "text": "I have ____ cat.",
+                    "answers": ["one", "two", "three", "four"],
+                    "correct_answer": "one"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "f1_dragdrop",
+            "title": "Перетащите перевод",
+            "questions": [
+              {
+                "id": "f1_q6",
+                "type": "DragDropItems",
+                "title": "Перетащите перевод к слову",
+                "data_source": [
+                  { "text": "hello", "correct_answer": "привет" },
+                  { "text": "five",  "correct_answer": "пять" }
+                ],
+                "word_bank": ["привет", "пять"]
+              }
+            ]
+          },
+          {
+            "id": "f1_categorize",
+            "title": "Распределите по категориям",
+            "questions": [
+              {
+                "id": "f1_q7",
+                "type": "CategorizeGame",
+                "title": "Соедините слова с категориями",
+                "data_source": [
+                  { "category": "Приветствия", "items": ["hello", "goodbye"] },
+                  { "category": "Числа",       "items": ["one", "two"] }
+                ],
+                "word_bank": ["hello", "goodbye", "one", "two"]
               }
             ]
           }

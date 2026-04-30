@@ -155,6 +155,12 @@ class CourseLesson {
   final int durationSeconds;
   final LessonStatus status;
   final LessonVideo? video;
+  /// Vocabulary set introduced by this lesson. Used by the
+  /// "Изучать слова N/M" card on the lesson hub — tapping that card
+  /// pipes the words into [ChoseLearnKnowPage] (the 4000-essential
+  /// learn flow). Not currently shown as a standalone card after the
+  /// vocabulary intro page was removed; keep it populated so the
+  /// learn flow has data to feed the games.
   final List<CourseFixtureWord> words;
   final List<String> games;
   final List<QuizQuestion> questions;

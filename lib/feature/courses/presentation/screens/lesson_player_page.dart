@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
+import 'package:vozhaomuz/core/services/screen_protection_service.dart';
 import 'package:vozhaomuz/feature/courses/data/models/course_fixture.dart';
 import 'package:vozhaomuz/shared/widgets/my_button.dart';
 
@@ -40,14 +42,30 @@ class _LessonPlayerPageState extends ConsumerState<LessonPlayerPage> {
   bool _initError = false;
   bool _completed = false;
 
+  /// SharedPreferences flag — set to `true` once the user has
+  /// reached the end of this lesson's video at least once. While it
+  /// is `false`, forward seeking and skip-ahead are disabled so the
+  /// user actually watches the content the first time. After that we
+  /// stop policing them.
+  bool _hasFinishedOnce = false;
+
+  String get _watchedPrefsKey => 'lesson_video_watched_${widget.lesson.id}';
+
   @override
   void initState() {
     super.initState();
+    // Block screenshots / screen recording while the user is on the
+    // video page. Disabled in dispose() so the rest of the app stays
+    // capturable. Android-only — no-op on iOS.
+    ScreenProtectionService.enable();
+
     final video = widget.lesson.video;
     if (video == null || (video.url == null && video.assetPath == null)) {
       _initError = true;
       return;
     }
+
+    _loadWatchedFlag();
 
     final controller = video.assetPath != null
         ? VideoPlayerController.asset(video.assetPath!)
@@ -68,6 +86,22 @@ class _LessonPlayerPageState extends ConsumerState<LessonPlayerPage> {
     controller.addListener(_onTick);
   }
 
+  Future<void> _loadWatchedFlag() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _hasFinishedOnce = prefs.getBool(_watchedPrefsKey) ?? false;
+    });
+  }
+
+  Future<void> _markWatchedOnce() async {
+    if (_hasFinishedOnce) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_watchedPrefsKey, true);
+    if (!mounted) return;
+    setState(() => _hasFinishedOnce = true);
+  }
+
   void _onTick() {
     final c = _controller;
     if (c == null || !c.value.isInitialized) return;
@@ -77,6 +111,7 @@ class _LessonPlayerPageState extends ConsumerState<LessonPlayerPage> {
     final dur = c.value.duration;
     if (!_completed && dur > Duration.zero && pos >= dur) {
       _completed = true;
+      _markWatchedOnce(); // Unlocks the seek bar / skip buttons next time.
       if (mounted) setState(() {});
     }
   }
@@ -124,6 +159,10 @@ class _LessonPlayerPageState extends ConsumerState<LessonPlayerPage> {
   void _seekRelative(Duration delta) {
     final c = _controller;
     if (c == null) return;
+    // First-watch lock: forward seeks are disabled until the user
+    // has reached the end of the video at least once. Backward seeks
+    // and rewinds are always allowed.
+    if (!_hasFinishedOnce && delta > Duration.zero) return;
     final next = c.value.position + delta;
     final clamped = next < Duration.zero
         ? Duration.zero
@@ -135,6 +174,8 @@ class _LessonPlayerPageState extends ConsumerState<LessonPlayerPage> {
   void dispose() {
     _controller?.removeListener(_onTick);
     _controller?.dispose();
+    // Re-allow screenshots / screen recording for the rest of the app.
+    ScreenProtectionService.disable();
     super.dispose();
   }
 
@@ -241,9 +282,13 @@ class _LessonPlayerPageState extends ConsumerState<LessonPlayerPage> {
                   onTap: _togglePlayPause,
                 ),
                 _circleButton(
-                  Icons.forward_10_rounded,
-                  size: 26,
-                  onTap: () => _seekRelative(const Duration(seconds: 10)),
+                  _hasFinishedOnce
+                      ? Icons.forward_10_rounded
+                      : Icons.lock_outline_rounded,
+                  size: _hasFinishedOnce ? 26 : 22,
+                  onTap: _hasFinishedOnce
+                      ? () => _seekRelative(const Duration(seconds: 10))
+                      : null,
                 ),
               ],
             ),
@@ -255,7 +300,9 @@ class _LessonPlayerPageState extends ConsumerState<LessonPlayerPage> {
               children: [
                 VideoProgressIndicator(
                   c,
-                  allowScrubbing: true,
+                  // First-watch lock: scrubbing only after the user
+                  // has played the video to the end at least once.
+                  allowScrubbing: _hasFinishedOnce,
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   colors: const VideoProgressColors(
                     playedColor: Color(0xFF2E90FA),
@@ -263,6 +310,18 @@ class _LessonPlayerPageState extends ConsumerState<LessonPlayerPage> {
                     backgroundColor: Color(0x33FFFFFF),
                   ),
                 ),
+                if (!_hasFinishedOnce)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      'lesson_video_first_watch_hint'.tr(),
+                      style: GoogleFonts.inter(
+                        color: Colors.white70,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -294,9 +353,10 @@ class _LessonPlayerPageState extends ConsumerState<LessonPlayerPage> {
 
   Widget _circleButton(IconData icon,
       {required double size,
-      required VoidCallback onTap,
+      required VoidCallback? onTap,
       bool big = false}) {
     final dim = big ? 64.0 : 44.0;
+    final disabled = onTap == null;
     return Material(
       color: Colors.transparent,
       shape: const CircleBorder(),
@@ -310,7 +370,7 @@ class _LessonPlayerPageState extends ConsumerState<LessonPlayerPage> {
             shape: BoxShape.circle,
             color: big
                 ? const Color(0xFF2E90FA)
-                : Colors.white.withValues(alpha: 0.15),
+                : Colors.white.withValues(alpha: disabled ? 0.07 : 0.15),
             boxShadow: big
                 ? [
                     BoxShadow(
@@ -321,7 +381,11 @@ class _LessonPlayerPageState extends ConsumerState<LessonPlayerPage> {
                   ]
                 : null,
           ),
-          child: Icon(icon, color: Colors.white, size: size),
+          child: Icon(
+            icon,
+            color: Colors.white.withValues(alpha: disabled ? 0.45 : 1.0),
+            size: size,
+          ),
         ),
       ),
     );
