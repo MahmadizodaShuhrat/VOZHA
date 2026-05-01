@@ -148,10 +148,30 @@ class _StreakHistoryDialogState extends ConsumerState<StreakHistoryDialog>
       );
     }
 
+    // The "this week" strip can straddle a month boundary (e.g. on a
+    // Friday May 1st, the Mon..Sun row reaches back to Apr 27). The
+    // backend only returns active dates for ONE month per request, so
+    // also watch the previous month and merge the sets — otherwise
+    // the previous-month days appear empty even though the user was
+    // active on them. Cheap: AsyncValue caches inside Riverpod.
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final monday = today.subtract(Duration(days: today.weekday - 1));
+    Set<DateTime> mergedActiveDates = activity.activeDates;
+    if (monday.month != today.month || monday.year != today.year) {
+      final prevMonthAsync = ref.watch(
+        userActivityProvider((year: monday.year, month: monday.month)),
+      );
+      final prev = prevMonthAsync.asData?.value;
+      if (prev != null) {
+        mergedActiveDates = {...activity.activeDates, ...prev.activeDates};
+      }
+    }
+
     final history = StreakHistory(
       currentStreak: activity.currentStreak,
       longestStreak: activity.longestStreak,
-      activeDates: activity.activeDates,
+      activeDates: mergedActiveDates,
     );
     final nextMilestone = _nextMilestoneFor(history.currentStreak);
 
