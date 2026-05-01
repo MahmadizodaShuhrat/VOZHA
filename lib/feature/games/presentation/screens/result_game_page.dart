@@ -35,6 +35,7 @@ import 'package:vozhaomuz/feature/rating/presentation/providers/user_rank_provid
 import 'package:vozhaomuz/feature/home/presentation/providers/user_activity_provider.dart';
 import 'package:vozhaomuz/core/services/streak_service.dart';
 import 'package:vozhaomuz/core/services/notification_service.dart';
+import 'package:vozhaomuz/shared/widgets/premium_bonus_dialog.dart';
 import 'package:vozhaomuz/shared/widgets/streak_popup.dart';
 import 'package:vozhaomuz/core/providers/energy_provider.dart';
 
@@ -225,13 +226,24 @@ class _ResultGamePageState extends ConsumerState<ResultGamePage> {
     final startTime =
         ref.read(learningSessionProvider.notifier).endSession() ?? endTime;
 
-    repo.sendActivity(
+    repo
+        .sendActivity(
       startTime: startTime,
       endTime: endTime,
       learned: wasRepeatMode ? [] : correctWordIds,
       errors: wrongWordIds,
       repeated: wasRepeatMode ? correctWordIds : [],
-    );
+    )
+        .then((bonus) async {
+      // TZ §1: when activity crosses a streak milestone the response
+      // ships a `premium_bonus` block. Show the dialog and refresh the
+      // profile so `userType`/`tariff_expired_at` reflect the new
+      // bonus subscription.
+      if (!mounted || bonus == null) return;
+      await showPremiumBonusDialog(context, bonus: bonus);
+      if (!mounted) return;
+      await ref.read(getProfileInfoProvider.notifier).getProfile();
+    });
   }
 
   /// Optimistic local progress + `syncProgress` + post-sync invalidate
@@ -274,8 +286,17 @@ class _ResultGamePageState extends ConsumerState<ResultGamePage> {
     setState(() {
       final future = repo.syncProgress(words: wordsToUpload);
       _apiCall = future;
-      future.then((response) {
+      future.then((response) async {
         _applySyncRewards(response);
+        // TZ §1: same `premium_bonus` block can be returned by the
+        // sync endpoint when this batch tipped the streak past a
+        // milestone. Show the dialog before the streak popup so the
+        // user sees the high-value reward first.
+        if (mounted && response.premiumBonus != null) {
+          await showPremiumBonusDialog(context, bonus: response.premiumBonus!);
+          if (!mounted) return;
+          await ref.read(getProfileInfoProvider.notifier).getProfile();
+        }
         // 800ms lets the backend persist before we refetch, while still
         // feeling immediate to the user.
         Future.delayed(const Duration(milliseconds: 800), () async {

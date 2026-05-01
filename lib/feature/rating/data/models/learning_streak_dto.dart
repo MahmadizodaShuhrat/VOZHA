@@ -26,6 +26,29 @@ class LearningStreakDto {
   final List<MilestoneDto> availableMilestones;
   final List<int> claimedMilestones;
 
+  // Premium-bonus block — see `TZ_STREAK_PREMIUM_BONUS.md` §2. All four
+  // are optional; when the backend doesn't ship the feature yet (older
+  // staging, custom builds), they fall back to "no bonus" defaults so
+  // the rest of the streak UI keeps working unchanged.
+
+  /// How many active days are left before the next +1-day premium
+  /// milestone fires. `0` means the bonus already triggered on this
+  /// very request.
+  final int nextPremiumMilestoneIn;
+
+  /// Cycle length (default 10). Drives the progress bar
+  /// `current_streak % threshold / threshold`.
+  final int premiumBonusThreshold;
+
+  /// Lifetime sum of premium days the user has earned via streak
+  /// bonuses (purchased subscriptions excluded).
+  final int totalPremiumDaysEarned;
+
+  /// UTC date until which the accumulated bonus subscription stays
+  /// active, separately from any purchased premium. Null when the
+  /// user has never earned a bonus or the field is missing.
+  final DateTime? bonusPremiumActiveUntil;
+
   const LearningStreakDto({
     required this.currentStreak,
     required this.longestStreak,
@@ -33,6 +56,10 @@ class LearningStreakDto {
     required this.todayLearned,
     required this.availableMilestones,
     required this.claimedMilestones,
+    required this.nextPremiumMilestoneIn,
+    required this.premiumBonusThreshold,
+    required this.totalPremiumDaysEarned,
+    required this.bonusPremiumActiveUntil,
   });
 
   factory LearningStreakDto.fromJson(Map<String, dynamic> j) {
@@ -47,6 +74,11 @@ class LearningStreakDto {
         .map((e) => e is int ? e : int.tryParse('$e') ?? 0)
         .where((d) => d > 0)
         .toList();
+    final activeUntilRaw = j['bonus_premium_active_until'];
+    DateTime? activeUntil;
+    if (activeUntilRaw is String && activeUntilRaw.isNotEmpty) {
+      activeUntil = DateTime.tryParse(activeUntilRaw)?.toUtc();
+    }
     return LearningStreakDto(
       currentStreak: (j['current_streak'] as num?)?.toInt() ?? 0,
       longestStreak: (j['longest_streak'] as num?)?.toInt() ?? 0,
@@ -54,6 +86,17 @@ class LearningStreakDto {
       todayLearned: j['today_learned'] as bool? ?? false,
       availableMilestones: milestones,
       claimedMilestones: claimed,
+      nextPremiumMilestoneIn:
+          (j['next_premium_milestone_in'] as num?)?.toInt() ?? 0,
+      // `0` signals "old backend that doesn't ship the bonus
+      // feature yet" so the UI can hide the progress card. New
+      // deployments always send 10 (or whatever
+      // `STREAK_PREMIUM_THRESHOLD` is configured to).
+      premiumBonusThreshold:
+          (j['premium_bonus_threshold'] as num?)?.toInt() ?? 0,
+      totalPremiumDaysEarned:
+          (j['total_premium_days_earned'] as num?)?.toInt() ?? 0,
+      bonusPremiumActiveUntil: activeUntil,
     );
   }
 
@@ -64,6 +107,10 @@ class LearningStreakDto {
     todayLearned: false,
     availableMilestones: [],
     claimedMilestones: [],
+    nextPremiumMilestoneIn: 0,
+    premiumBonusThreshold: 0,
+    totalPremiumDaysEarned: 0,
+    bonusPremiumActiveUntil: null,
   );
 }
 

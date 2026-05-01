@@ -9,6 +9,7 @@ import 'package:vozhaomuz/feature/profile/presentation/providers/get_profile_inf
 import 'package:vozhaomuz/feature/rating/data/models/learning_streak_dto.dart';
 import 'package:vozhaomuz/feature/rating/presentation/providers/learning_streak_provider.dart';
 import 'package:vozhaomuz/shared/widgets/milestone_claim_celebration.dart';
+import 'package:vozhaomuz/shared/widgets/streak_premium_history_page.dart';
 
 /// Immutable snapshot of a user's activity history, filled from the
 /// `GET /api/v1/user/activity?year=&month=` endpoint.
@@ -214,6 +215,20 @@ class _StreakHistoryDialogState extends ConsumerState<StreakHistoryDialog>
                   const SizedBox(height: 18),
                   _LongestStreakCard(longest: history.longestStreak),
                 ],
+                // TZ §2: premium-bonus progress bar + earned-so-far total.
+                // Backend ships these fields on `/dict/learning-streak`;
+                // skip when threshold == 0 (very old backend) so we don't
+                // divide-by-zero or render an empty card.
+                if (activity.premiumBonusThreshold > 0) ...[
+                  const SizedBox(height: 14),
+                  _PremiumBonusProgressCard(
+                    currentStreak: history.currentStreak,
+                    threshold: activity.premiumBonusThreshold,
+                    nextMilestoneIn: activity.nextPremiumMilestoneIn,
+                    totalEarned: activity.totalPremiumDaysEarned,
+                    bonusActiveUntil: activity.bonusPremiumActiveUntil,
+                  ),
+                ],
                 // Milestone rewards (manual claim — 7/14/30/90/180/365 days).
                 // Backend: `/dict/learning-streak` → `available_milestones`.
                 const SizedBox(height: 18),
@@ -259,6 +274,120 @@ class _StreakHistoryDialogState extends ConsumerState<StreakHistoryDialog>
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// TZ §2 — Premium-bonus progress card. Sits below the longest-streak
+/// row and lets the user tap into the full bonus history page.
+class _PremiumBonusProgressCard extends StatelessWidget {
+  final int currentStreak;
+  final int threshold;
+  final int nextMilestoneIn;
+  final int totalEarned;
+  final DateTime? bonusActiveUntil;
+
+  const _PremiumBonusProgressCard({
+    required this.currentStreak,
+    required this.threshold,
+    required this.nextMilestoneIn,
+    required this.totalEarned,
+    required this.bonusActiveUntil,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Backend's `next_premium_milestone_in` accounts for "already
+    // earned today" by reporting the FULL threshold (10 → next bonus
+    // tomorrow). So progress = threshold - nextMilestoneIn, modulo
+    // threshold.
+    final filled = (threshold - nextMilestoneIn) % threshold;
+    final pct = threshold == 0 ? 0.0 : filled / threshold;
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const StreakPremiumHistoryPage(),
+            ),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF7ED),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: const Color(0xFFFDB022).withValues(alpha: 0.35),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFDB022), Color(0xFFE48B0B)],
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Text('👑', style: TextStyle(fontSize: 16)),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'streak_progress_to_bonus'.tr(
+                        namedArgs: {'days': '$nextMilestoneIn'},
+                      ),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFFB45309),
+                      ),
+                    ),
+                  ),
+                  const Icon(Icons.arrow_forward_ios_rounded,
+                      size: 14, color: Color(0xFFB45309)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: pct,
+                  minHeight: 8,
+                  backgroundColor: const Color(0xFFFDE6B6),
+                  valueColor:
+                      const AlwaysStoppedAnimation(Color(0xFFE48B0B)),
+                ),
+              ),
+              if (totalEarned > 0) ...[
+                const SizedBox(height: 6),
+                Text(
+                  'streak_total_bonus_earned'.tr(
+                    namedArgs: {'days': '$totalEarned'},
+                  ),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFB45309),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ),

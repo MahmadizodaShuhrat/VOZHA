@@ -24,12 +24,23 @@ class UserActivity {
   final int currentStreak;
   final int longestStreak;
 
+  // TZ §2 — premium-bonus block. Optional on the response. Defaults
+  // are safe for older backends that don't ship the feature yet.
+  final int nextPremiumMilestoneIn;
+  final int premiumBonusThreshold;
+  final int totalPremiumDaysEarned;
+  final DateTime? bonusPremiumActiveUntil;
+
   const UserActivity({
     required this.year,
     required this.month,
     required this.activeDates,
     required this.currentStreak,
     required this.longestStreak,
+    required this.nextPremiumMilestoneIn,
+    required this.premiumBonusThreshold,
+    required this.totalPremiumDaysEarned,
+    required this.bonusPremiumActiveUntil,
   });
 
   factory UserActivity.fromJson(Map<String, dynamic> json) {
@@ -43,12 +54,29 @@ class UserActivity {
         parsed.add(DateTime(dt.year, dt.month, dt.day));
       }
     }
+    final activeUntilRaw = json['bonus_premium_active_until'];
+    DateTime? activeUntil;
+    if (activeUntilRaw is String && activeUntilRaw.isNotEmpty) {
+      activeUntil = DateTime.tryParse(activeUntilRaw)?.toUtc();
+    }
     return UserActivity(
       year: json['year'] as int? ?? 0,
       month: json['month'] as int? ?? 0,
       activeDates: parsed,
       currentStreak: json['current_streak'] as int? ?? 0,
       longestStreak: json['longest_streak'] as int? ?? 0,
+      nextPremiumMilestoneIn:
+          (json['next_premium_milestone_in'] as num?)?.toInt() ?? 0,
+      // Default `0` (not 10) when the field is absent so the UI can
+      // tell "old backend without the feature" apart from "new
+      // backend that explicitly sent 10". Real deployments always
+      // include the field — `0` is the "feature not shipped yet"
+      // signal that hides the progress bar.
+      premiumBonusThreshold:
+          (json['premium_bonus_threshold'] as num?)?.toInt() ?? 0,
+      totalPremiumDaysEarned:
+          (json['total_premium_days_earned'] as num?)?.toInt() ?? 0,
+      bonusPremiumActiveUntil: activeUntil,
     );
   }
 
@@ -58,6 +86,10 @@ class UserActivity {
     activeDates: {},
     currentStreak: 0,
     longestStreak: 0,
+    nextPremiumMilestoneIn: 0,
+    premiumBonusThreshold: 0,
+    totalPremiumDaysEarned: 0,
+    bonusPremiumActiveUntil: null,
   );
 }
 

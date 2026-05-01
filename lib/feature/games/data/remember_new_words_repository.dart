@@ -7,6 +7,7 @@ import 'package:vozhaomuz/core/services/auth_session_handler.dart';
 import 'package:vozhaomuz/feature/games/data/models/remember_word_dto.dart';
 import 'package:vozhaomuz/core/services/words_sync_service.dart';
 import 'package:vozhaomuz/feature/games/data/models/user_words_with_upload.dart';
+import 'package:vozhaomuz/feature/rating/data/models/premium_bonus_dto.dart';
 
 class RememberNewWordsRepository implements IRememberNewWordsRepository {
   final String baseUrl;
@@ -116,7 +117,11 @@ class RememberNewWordsRepository implements IRememberNewWordsRepository {
 
   /// Отправляет статистику учебной сессии.
   /// POST /api/v1/users/flutter/activity
-  Future<void> sendActivity({
+  ///
+  /// Returns the response's optional `premium_bonus` block when the
+  /// session crossed a streak milestone (TZ §1).
+  @override
+  Future<PremiumBonusDto?> sendActivity({
     required DateTime startTime,
     required DateTime endTime,
     required List<int> learned,
@@ -126,7 +131,7 @@ class RememberNewWordsRepository implements IRememberNewWordsRepository {
     final token = await StorageService.instance.getAccessToken();
     if (token == null) {
       debugPrint('❌ [sendActivity] No token available');
-      return;
+      return null;
     }
 
     final durationSeconds = endTime.difference(startTime).inSeconds;
@@ -158,8 +163,18 @@ class RememberNewWordsRepository implements IRememberNewWordsRepository {
       ).timeout(const Duration(seconds: 15));
 
       debugPrint('📊 [sendActivity] Response: ${res.statusCode}');
+      if (res.statusCode == 200) {
+        try {
+          final body = jsonDecode(res.body);
+          return PremiumBonusDto.tryParse(body);
+        } catch (_) {
+          // Body wasn't JSON — backend's old format. No bonus.
+        }
+      }
+      return null;
     } catch (e) {
       debugPrint('❌ [sendActivity] Error: $e');
+      return null;
     }
   }
 
