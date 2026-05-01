@@ -186,7 +186,27 @@ class _PronounceWordGameState extends ConsumerState<PronounceWordGame>
           audioFilePath: audioPath,
         );
 
-        final isCorrect = azureResult.isSuccess && azureResult.accuracyScore >= 75;
+        // When Azure fails (401, network, quota) we still want to score
+        // the user — the result dialog already falls back to a local
+        // string-similarity check (`evaluatePronunciation`). Use that
+        // same fallback to compute correctness instead of forcing a
+        // "wrong" verdict and penalising the player for an outage.
+        final bool isCorrect;
+        if (azureResult.isSuccess) {
+          isCorrect = azureResult.accuracyScore >= 75;
+        } else {
+          final fallback = evaluatePronunciation(
+            q.correctAnswer,
+            azureResult.displayText ?? q.correctAnswer,
+          );
+          final pronScore = ((fallback['accuracy']! +
+                      fallback['fluency']! +
+                      fallback['completeness']!) /
+                  3)
+              .toInt();
+          debugPrint('📊 Azure unavailable, fallback pronScore=$pronScore');
+          isCorrect = pronScore >= 75;
+        }
 
         // If battle already ended (widget disposed), skip dialog and just submit
         if (_disposed || !mounted) {
