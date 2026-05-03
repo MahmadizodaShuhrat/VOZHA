@@ -18,13 +18,32 @@ import 'package:vozhaomuz/shared/widgets/energy_paywall_dialog.dart';
 /// Extracted from home_page.dart for better maintainability.
 class HomeHeaderSection extends ConsumerWidget {
   final bool isPremium;
-  final int? daysLeft;
 
-  const HomeHeaderSection({
-    super.key,
-    required this.isPremium,
-    this.daysLeft,
-  });
+  /// Premium expiry timestamp (UTC). The header picks the right unit
+  /// — days, hours, or minutes — based on how much time is left so
+  /// the last 24 hours don't display as "0 days left" anymore.
+  final DateTime? expiryUtc;
+
+  const HomeHeaderSection({super.key, required this.isPremium, this.expiryUtc});
+
+  /// Returns the localized "premium left" label, picking the largest
+  /// non-zero unit so the user never sees "0 days" while there's
+  /// still time remaining.
+  String _formatRemaining() {
+    if (expiryUtc == null) return 'premium_days_left'.tr(args: ['0']);
+    final remaining = expiryUtc!.difference(DateTime.now().toUtc());
+    if (remaining.isNegative || remaining == Duration.zero) {
+      return 'premium_expired'.tr();
+    }
+    if (remaining.inDays >= 1) {
+      return 'premium_days_left'.tr(args: ['${remaining.inDays}']);
+    }
+    if (remaining.inHours >= 1) {
+      return 'premium_hours_left'.tr(args: ['${remaining.inHours}']);
+    }
+    final minutes = remaining.inMinutes.clamp(1, 59);
+    return 'premium_minutes_left'.tr(args: ['$minutes']);
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -75,58 +94,86 @@ class HomeHeaderSection extends ConsumerWidget {
               MaterialPageRoute(builder: (_) => ProfilePage()),
             );
           },
-          child: Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              shape: BoxShape.circle,
-              border: isPremium
-                  ? Border.all(color: const Color(0xFFF9A628), width: 1.5)
-                  : Border.all(color: const Color(0xFFD9D9D9), width: 0.5),
-            ),
-            child: ClipOval(
-              child: profileInfo.when(
-                data: (data) {
-                  final url = data?.avatarUrl;
-                  if (url != null && url.isNotEmpty) {
-                    return CachedNetworkImage(
-                      imageUrl: buildAvatarUrl(url),
-                      fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => Image.asset(
-                        'assets/images/UIHome/usercircle.png',
+          child: SizedBox(
+            width: 56,
+            height: 56,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    shape: BoxShape.circle,
+                    gradient: isPremium
+                        ? const LinearGradient(
+                            colors: [Color(0xFFFFE08A), Color(0xFFE48B0B)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          )
+                        : null,
+                    border: isPremium
+                        ? null
+                        : Border.all(
+                            color: const Color(0xFFD9D9D9),
+                            width: 0.5,
+                          ),
+                  ),
+                  padding: isPremium ? const EdgeInsets.all(2.5) : null,
+                  child: ClipOval(
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
                       ),
-                    );
-                  } else {
-                    return Image.asset(
-                      'assets/images/UIHome/usercircle.png',
-                    );
-                  }
-                },
-                loading: () => Shimmer.fromColors(
-                  baseColor: Colors.grey.shade300,
-                  highlightColor: Colors.grey.shade100,
-                  child: Container(
-                    width: 50,
-                    height: 50,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
+                      child: ClipOval(
+                        child: profileInfo.when(
+                          data: (data) {
+                            final url = data?.avatarUrl;
+                            if (url != null && url.isNotEmpty) {
+                              return CachedNetworkImage(
+                                imageUrl: buildAvatarUrl(url),
+                                fit: BoxFit.cover,
+                                errorWidget: (_, __, ___) => Image.asset(
+                                  'assets/images/UIHome/usercircle.png',
+                                ),
+                              );
+                            } else {
+                              return Image.asset(
+                                'assets/images/UIHome/usercircle.png',
+                              );
+                            }
+                          },
+                          loading: () => Shimmer.fromColors(
+                            baseColor: Colors.grey.shade300,
+                            highlightColor: Colors.grey.shade100,
+                            child: Container(
+                              width: 50,
+                              height: 50,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                          error: (_, __) => const Icon(
+                            Icons.error,
+                            color: Colors.red,
+                            size: 40,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-                error: (_, __) => const Icon(
-                  Icons.error,
-                  color: Colors.red,
-                  size: 40,
-                ),
-              ),
+              ],
             ),
           ),
         ),
         if (isPremium)
           Positioned(
-            top: -25,
+            top: -20,
             right: 10,
             child: Image.asset(
               'assets/images/group_2.png',
@@ -168,7 +215,7 @@ class HomeHeaderSection extends ConsumerWidget {
         ),
         isPremium
             ? Text(
-                "premium_days_left".tr(args: [daysLeft?.toString() ?? '0']),
+                _formatRemaining(),
                 style: const TextStyle(color: Colors.orange, fontSize: 11),
               )
             : GestureDetector(
@@ -189,7 +236,6 @@ class HomeHeaderSection extends ConsumerWidget {
       ],
     );
   }
-
 }
 
 /// Energy pill in the header. Owns a 30-second ticker that calls

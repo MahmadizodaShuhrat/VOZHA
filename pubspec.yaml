@@ -1,7 +1,7 @@
 name: vozhaomuz
 description: "VozhaOmuz - English vocabulary learning app"
-publish_to: 'none'
-version: 2.61.0+180
+publish_to: "none"
+version: 2.66.0+186
 
 environment:
   sdk: ^3.8.1
@@ -28,7 +28,7 @@ dependencies:
   flutter_secure_storage: ^10.0.0
   sqflite: ^2.3.2
   path_provider: ^2.1.2
-  path_provider_android: 2.2.12  # Pin: 2.3.x uses JNI which breaks in release (ClassNotFoundException PathUtils)
+  path_provider_android: 2.2.12 # Pin: 2.3.x uses JNI which breaks in release (ClassNotFoundException PathUtils)
   path: ^1.9.0
 
   # Localization
@@ -69,11 +69,11 @@ dependencies:
   crypto: ^3.0.3
   uuid: ^4.3.3
   collection: ^1.18.0
-  
+
   # Image handling
   image_picker: ^1.0.7
   image: ^4.3.0
-  
+
   # Permissions
   permission_handler: ^12.0.1
   gap: ^3.0.1
@@ -114,7 +114,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  
+
   # Code generation
   build_runner: ^2.4.8
   freezed: ^3.2.3
@@ -131,7 +131,7 @@ flutter_launcher_icons:
 
 flutter:
   uses-material-design: true
-  
+
   assets:
     - assets/translate/
     - assets/courses/

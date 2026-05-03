@@ -20,6 +20,7 @@ import 'package:vozhaomuz/core/services/storage_service.dart';
 import 'package:vozhaomuz/core/services/word_text_cache.dart';
 import 'package:vozhaomuz/core/providers/energy_provider.dart';
 import 'package:vozhaomuz/feature/auth/presentation/screens/start_page.dart';
+import 'package:vozhaomuz/feature/home/data/banner_cache.dart';
 import 'package:vozhaomuz/feature/home/presentation/providers/banner_provider.dart';
 import 'package:vozhaomuz/feature/progress/progress_provider.dart';
 import 'package:vozhaomuz/feature/rating/presentation/providers/achievements_provider.dart';
@@ -816,7 +817,11 @@ class ProfilePage extends HookConsumerWidget {
                     ref.invalidate(achievementsProvider);
                     ref.invalidate(top3UsersDayProvider);
                     ref.invalidate(top30UsersProvider);
-                    ref.invalidate(bannersProvider);
+                    ref.invalidate(bannersControllerProvider);
+                    // Wipe the disk-cached banner list too — otherwise
+                    // the next user briefly sees the previous account's
+                    // targeted banners until the network refresh lands.
+                    await BannerCache.clear();
 
                     if (!context.mounted) return;
                     Navigator.of(context).pushAndRemoveUntil(

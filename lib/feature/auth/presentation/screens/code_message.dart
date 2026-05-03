@@ -188,10 +188,14 @@ class _CodeMessageState extends ConsumerState<CodeMessage> {
         '🔑 Token after login: ${savedToken != null ? '${savedToken.substring(0, 10)}...' : 'NULL!'}',
       );
 
-      if (!context.mounted) return;
+      // FCM device registration happens automatically via the global
+      // StorageService listener wired in `main.dart` — by the time
+      // we reach this point GoRouter has likely unmounted this screen
+      // already, so any context-dependent work has to live elsewhere.
+
       final dest = widget.isRegistration ? '/auth/level' : '/home';
       debugPrint('🚀 Navigating to $dest');
-      context.go(dest);
+      if (mounted) context.go(dest);
     } on AccountNotFoundException {
       // Phone registration path: login said "not found" after confirm.
       // Same story as the explicit-registration branch above — create
@@ -213,7 +217,7 @@ class _CodeMessageState extends ConsumerState<CodeMessage> {
         if (mounted) setState(() => _isLoading = false);
         return;
       }
-      if (context.mounted) context.go('/auth/level');
+      if (mounted) context.go('/auth/level');
     } catch (e) {
       _autoSubmitting = false;
       String errorMessage = 'something_went_wrong'.tr();
@@ -232,7 +236,10 @@ class _CodeMessageState extends ConsumerState<CodeMessage> {
         errorMessage = translateAuthError(cleaned);
       }
 
-      if (context.mounted) {
+      // Use State.mounted (not context.mounted) — accessing
+      // `context.mounted` after the widget unmounted throws inside the
+      // BuildContext getter before the property check even runs.
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(errorMessage)));

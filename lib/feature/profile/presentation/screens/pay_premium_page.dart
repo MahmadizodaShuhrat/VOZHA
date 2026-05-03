@@ -11,12 +11,17 @@ import 'package:vozhaomuz/feature/home/presentation/screens/widgets/payment_choi
 import 'package:vozhaomuz/shared/widgets/my_button.dart';
 
 class PayPremiumPage extends HookConsumerWidget {
-  const PayPremiumPage({Key? key}) : super(key: key);
+  /// Optional promo code coming from a push notification tap (e.g.
+  /// `PREMIUM7` from a premium-expiry reminder). When present, it
+  /// preloads the promo input so the user just has to hit "Apply".
+  final String? prefilledPromo;
+
+  const PayPremiumPage({Key? key, this.prefilledPromo}) : super(key: key);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedPlan = useState<int?>(null);
-    final promoController = useTextEditingController();
+    final promoController = useTextEditingController(text: prefilledPromo);
     final tariffsAsync = ref.watch(tariffsProvider);
     final lc = context.locale.languageCode;
     final langCode = lc == 'tg' ? 'tj' : lc;

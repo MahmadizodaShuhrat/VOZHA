@@ -1,274 +1,128 @@
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:vozhaomuz/core/utils/avatar_url_helper.dart';
+import 'package:vozhaomuz/app/bottom_navigation_bar/presentation/providers/bottom_nav_provider.dart';
 import 'package:vozhaomuz/feature/home/data/models/banner_dto.dart';
 import 'package:vozhaomuz/feature/home/presentation/providers/banner_provider.dart';
-import 'package:vozhaomuz/feature/profile/presentation/screens/my_subscription_page.dart';
-import 'package:vozhaomuz/feature/profile/presentation/screens/my_coins_page.dart';
-import 'package:vozhaomuz/feature/profile/presentation/screens/invite_friend_page.dart';
+import 'package:vozhaomuz/feature/home/presentation/screens/widgets/banner_link_router.dart';
 import 'package:vozhaomuz/feature/home/presentation/screens/widgets/banner_widgets.dart';
-import 'package:vozhaomuz/feature/rating/presentation/providers/top_3_users_day_provider.dart';
-import 'package:vozhaomuz/feature/rating/presentation/screens/all_top_vozhaomuzes.dart';
-import 'package:vozhaomuz/app/bottom_navigation_bar/presentation/providers/bottom_nav_provider.dart';
+import 'package:vozhaomuz/feature/home/presentation/screens/widgets/rating_banner_widget.dart';
 
-/// Баннерҳои саҳифаи асосӣ: рейтинг + баннерҳои динамикӣ аз backend.
-class HomeBannerSection extends ConsumerWidget {
+/// Home-page banner carousel — fully driven by `GET /api/v1/dict/banners`.
+/// No hardcoded slides: when the admin has zero active banners the
+/// carousel collapses (zero-height) and the home page keeps flowing
+/// without an empty placeholder. The rating slide is just another row
+/// the admin publishes with `type='rating'` (TZ §3 / §10.6).
+///
+/// Refresh policy (TZ §11):
+/// - cold start: hydrate from disk cache, then refetch in background
+/// - app foregrounded after >10 min: lifecycle observer kicks `refreshIfStale`
+/// - returning to the home tab after >5 min: `ref.listen` on bottom-nav
+/// - pull-to-refresh: wired in `home_page.dart`
+///
+/// SWR semantics: while the controller refetches in the background the
+/// previous list stays on screen, so users never see an empty carousel
+/// during a routine refresh.
+class HomeBannerSection extends ConsumerStatefulWidget {
   const HomeBannerSection({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final bannersAsync = ref.watch(bannersProvider);
+  ConsumerState<HomeBannerSection> createState() => _HomeBannerSectionState();
+}
 
-    // Rating slide
-    final ratingSlide = GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const AllTop30Vozhaomuz()),
-        );
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 5),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(15),
-          child: IntrinsicHeight(
-            child: Stack(
-              children: [
-                // Background gradient image
-                Positioned.fill(
-                  child: Image.asset(
-                    'assets/images/banner_bg.png',
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                // Ellipse 1199
-                Positioned(
-                  bottom: -8,
-                  right: -65,
-                  child: Image.asset(
-                    'assets/images/Ellipse 1199.png',
-                    width: 200,
-                    height: 200,
-                    fit: BoxFit.contain,
-                  ),
-                ),
-                // Cloud overlay
-                Positioned(
-                  top: 1,
-                  child: Image.asset(
-                    'assets/images/banner_cloud.png',
-                    fit: BoxFit.cover,
-                    height: 200,
-                  ),
-                ),
-                // Content: users + trophy
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Row(
-                    children: [
-                      // Left: title + top 3 users
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              "rating".tr(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Consumer(
-                              builder: (context, ref, _) {
-                                final topUsersAsync = ref.watch(
-                                  top3UsersDayProvider,
-                                );
-                                return topUsersAsync.when(
-                                  data: (users) {
-                                    if (users.isEmpty) {
-                                      return const SizedBox.shrink();
-                                    }
-                                    return Column(
-                                      children: users.asMap().entries.map((
-                                        entry,
-                                      ) {
-                                        final index = entry.key;
-                                        final user = entry.value;
-                                        final avatarUrl = user.avatarUrl;
-                                        final isUserPremium =
-                                            user.userType == 'pre';
-                                        return Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 1,
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              Stack(
-                                                clipBehavior: Clip.none,
-                                                children: [
-                                                  Container(
-                                                    width: 28,
-                                                    height: 28,
-                                                    decoration: BoxDecoration(
-                                                      shape: BoxShape.circle,
-                                                      border: Border.all(
-                                                        color: isUserPremium
-                                                            ? const Color(
-                                                                0xFFF9A628,
-                                                              )
-                                                            : Colors.white
-                                                                  .withOpacity(
-                                                                    0.6,
-                                                                  ),
-                                                        width: 1.5,
-                                                      ),
-                                                      image: DecorationImage(
-                                                        image:
-                                                            (avatarUrl !=
-                                                                    null &&
-                                                                avatarUrl
-                                                                    .isNotEmpty)
-                                                            ? CachedNetworkImageProvider(
-                                                                buildAvatarUrl(
-                                                                  avatarUrl,
-                                                                ),
-                                                              )
-                                                            : const AssetImage(
-                                                                    'assets/images/UIHome/usercircle.png',
-                                                                  )
-                                                                  as ImageProvider,
-                                                        fit: BoxFit.cover,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  if (isUserPremium)
-                                                    Positioned(
-                                                      top: -15,
-                                                      right: 0,
-                                                      left: -5,
-                                                      child: Center(
-                                                        child: Image.asset(
-                                                          'assets/images/group_2.png',
-                                                          width: 20,
-                                                          height: 20,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                ],
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                      user.name ?? '',
-                                                      style: const TextStyle(
-                                                        color: Colors.white,
-                                                        fontSize: 13,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                      ),
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                    ),
-                                                    Text(
-                                                      "n_words".tr(
-                                                        args: [
-                                                          '${user.count ?? 0}',
-                                                        ],
-                                                      ),
-                                                      style: TextStyle(
-                                                        color: Colors.white
-                                                            .withOpacity(0.8),
-                                                        fontSize: 11,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                              Text(
-                                                '${index + 1}',
-                                                style: TextStyle(
-                                                  color: Colors.white
-                                                      .withOpacity(0.9),
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      }).toList(),
-                                    );
-                                  },
-                                  loading: () => const SizedBox(
-                                    height: 80,
-                                    child: Center(
-                                      child: CircularProgressIndicator(
-                                        color: Colors.white,
-                                        strokeWidth: 2,
-                                      ),
-                                    ),
-                                  ),
-                                  error: (_, __) => const SizedBox.shrink(),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Right: trophy
-                      Image.asset(
-                        'assets/images/banner (3).png',
-                        width: 90,
-                        height: 90,
-                        fit: BoxFit.contain,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+class _HomeBannerSectionState extends ConsumerState<HomeBannerSection>
+    with WidgetsBindingObserver {
+  /// Threshold for `AppLifecycleState.resumed` — app coming back from
+  /// background. Longer because we expect the user to have been gone
+  /// for a while (TZ §11 calls this out as ~10 min).
+  static const _staleAfterResume = Duration(minutes: 10);
 
-    return bannersAsync.when(
-      data: (banners) {
-        debugPrint('📢 Banners loaded: ${banners.length}');
-        return BannerCarousel(banners: banners, ratingSlide: ratingSlide);
-      },
-      loading: () {
-        debugPrint('📢 Banners loading...');
-        return BannerCarousel(banners: const [], ratingSlide: ratingSlide);
-      },
-      error: (e, st) {
-        debugPrint('📢 Banners error: $e');
-        debugPrint('📢 Banners stacktrace: $st');
-        return BannerCarousel(banners: const [], ratingSlide: ratingSlide);
-      },
-    );
+  /// Threshold for tab-return — user was just on another bottom-nav
+  /// tab and came back. Shorter because the round-trip is cheap and
+  /// admin changes feel snappier this way (TZ §11: "5 min on home tab").
+  static const _staleAfterTabReturn = Duration(minutes: 5);
+
+  /// Bottom-nav index where this section lives. Must match the
+  /// home-tab index in `navigation_bar.dart` (currently 0).
+  static const _homeTabIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref
+          .read(bannersControllerProvider.notifier)
+          .refreshIfStale(_staleAfterResume);
+    }
+  }
+
+  /// Synthetic rating slide that's always present in the carousel
+  /// regardless of what the backend returns. The leaderboard is a
+  /// permanent home-page feature — admin disabling/restoring it via
+  /// the admin panel is out of scope for now. If the backend later
+  /// publishes its own `type='rating'` row, [_withRatingFallback]
+  /// drops this synthetic one to avoid duplicates.
+  static final BannerDto _ratingFallback = BannerDto(
+    id: -1,
+    type: 'rating',
+    title: 'Rating',
+    fileName: '',
+    link: 'app://Rating',
+    position: 0,
+    appVersion: 0,
+    platform: '',
+  );
+
+  /// Inserts the rating slide at the top unless the server already
+  /// included one. Order is preserved otherwise.
+  List<BannerDto> _withRatingFallback(List<BannerDto> serverBanners) {
+    final hasServerRating = serverBanners.any((b) => b.type == 'rating');
+    if (hasServerRating) return serverBanners;
+    return [_ratingFallback, ...serverBanners];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Watch bottom-nav transitions: every time the user lands back on
+    // the home tab from somewhere else, ask the controller for a
+    // refresh if the cache is older than 5 min. Cheap enough to do on
+    // every transition because `refreshIfStale` short-circuits when
+    // data is fresh.
+    ref.listen<int>(bottomNavProvider, (previous, next) {
+      if (previous != _homeTabIndex && next == _homeTabIndex) {
+        ref
+            .read(bannersControllerProvider.notifier)
+            .refreshIfStale(_staleAfterTabReturn);
+      }
+    });
+
+    final asyncState = ref.watch(bannersControllerProvider);
+    // Show the previous list (if any) during a background refresh —
+    // `asData` carries data through both loading and error states.
+    final serverBanners =
+        asyncState.asData?.value.banners ?? const <BannerDto>[];
+    final banners = _withRatingFallback(serverBanners);
+    return BannerCarousel(banners: banners);
   }
 }
 
-/// Auto-scrolling banner carousel that displays rating + banners from backend.
+/// Auto-scrolling banner carousel — every slide is a row from the
+/// backend list. `type='rating'` renders the leaderboard widget,
+/// everything else falls back to the image-card builder so unknown
+/// future types stay safe (TZ §3 forward-compat).
 class BannerCarousel extends StatefulWidget {
   final List<BannerDto> banners;
-  final Widget ratingSlide;
-  const BannerCarousel({
-    super.key,
-    required this.banners,
-    required this.ratingSlide,
-  });
+  const BannerCarousel({super.key, required this.banners});
 
   @override
   State<BannerCarousel> createState() => _BannerCarouselState();
@@ -281,18 +135,17 @@ class _BannerCarouselState extends State<BannerCarousel> {
   int _currentPage = 0;
   bool _autoScrollStarted = false;
 
-  int get _totalPages => 1 + widget.banners.length;
+  int get _totalPages => widget.banners.length;
 
-  // Large virtual count for infinite effect
   static const int _virtualCount = 10000;
-  int get _initialPage =>
-      (_virtualCount ~/ 2) - ((_virtualCount ~/ 2) % _totalPages);
+  int get _initialPage => _totalPages == 0
+      ? 0
+      : (_virtualCount ~/ 2) - ((_virtualCount ~/ 2) % _totalPages);
 
   @override
   void initState() {
     super.initState();
     _controller = PageController(initialPage: _initialPage);
-    _currentPage = 0;
     _maybeStartAutoScroll();
   }
 
@@ -329,78 +182,40 @@ class _BannerCarouselState extends State<BannerCarousel> {
     super.dispose();
   }
 
-  void _handleBannerTap(BannerDto banner) {
-    final link = banner.link;
-    if (link.isEmpty) return;
-
-    // Matches Unity: links drive banner behavior. HTTPS opens externally,
-    // app:// routes open in-app pages.
-    if (link.startsWith('https://') || link.startsWith('http://')) {
-      launchUrl(Uri.parse(link), mode: LaunchMode.externalApplication);
-      return;
-    }
-
-    if (!link.startsWith('app://')) return;
-
-    final pageName = link.replaceFirst('app://', '');
-    switch (pageName) {
-      case 'Premium':
-      case 'UISubscriptionPage':
-      case 'UIFreeSubscriptionPage':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const MySubscriptionPage()),
-        );
-        return;
-      case 'UIBuyCoins':
-      case 'UICoinPage':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const MyCoinsPage()),
-        );
-        return;
-      case 'UIInviteFriend':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const InviteFriendPage()),
-        );
-        return;
-      case 'UIBattlePage':
-        final container = ProviderScope.containerOf(context);
-        // Battle is at index 3 after the Courses tab was added.
-        container.read(bottomNavProvider.notifier).setIndex(3);
-        return;
+  Widget _buildSlide(BannerDto banner) {
+    switch (banner.type) {
+      case 'rating':
+        return RatingBannerWidget(banner: banner);
+      case 'image':
       default:
-        debugPrint('Unknown app route: $pageName');
+        // Forward-compat: an unknown type from a newer backend still
+        // renders as a regular image card so the app doesn't crash.
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 5),
+          child: BannerWidgetBuilder.buildBanner(banner),
+        );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_totalPages == 0) {
+      return const SizedBox.shrink();
+    }
     return Column(
       children: [
-        // Adaptive height: proportional to screen, max 165
         SizedBox(
           height: (MediaQuery.of(context).size.height * 0.20).clamp(130.0, 165.0),
           child: PageView.builder(
             controller: _controller,
-            // No itemCount = infinite scrolling
             onPageChanged: (i) =>
                 setState(() => _currentPage = i % _totalPages),
             itemBuilder: (_, index) {
               final realIndex = index % _totalPages;
-              if (realIndex == 0) {
-                return widget.ratingSlide;
-              }
-              final banner = widget.banners[realIndex - 1];
+              final banner = widget.banners[realIndex];
               return GestureDetector(
-                onTap: () => _handleBannerTap(banner),
-                child: SizedBox.expand(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 5),
-                    child: BannerWidgetBuilder.buildBanner(banner),
-                  ),
-                ),
+                onTap: () => BannerLinkRouter.handle(context, banner.link),
+                child: SizedBox.expand(child: _buildSlide(banner)),
               );
             },
           ),
@@ -430,3 +245,4 @@ class _BannerCarouselState extends State<BannerCarousel> {
     );
   }
 }
+

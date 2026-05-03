@@ -50,8 +50,11 @@ class HomePage extends HookConsumerWidget {
         // premium welcome (handled via ref.listen below) doesn't depend
         // on this await resolving.
         try {
+          // 10s — rural-Tajikistan LTE/3G can take 5+ seconds just for
+          // the TCP/TLS handshake. Anything shorter silently misses the
+          // force-update dialog for users who actually need it the most.
           await _checkForUpdate(context, ref)
-              .timeout(const Duration(seconds: 5));
+              .timeout(const Duration(seconds: 10));
         } catch (e) {
           debugPrint('[HomePage] _checkForUpdate timed out / failed: $e');
         }
@@ -166,16 +169,17 @@ class HomePage extends HookConsumerWidget {
         // only if no update dialog was surfaced.
 
         ref.watch(localeProvider);
-        int? daysLeft;
+        // We pass the raw expiry to the header so it can pick the
+        // right unit (days / hours / minutes) on every rebuild — the
+        // previous integer-days API rounded down to 0 inside the last
+        // 24 hours and the user saw "0 days left" for almost a full
+        // day. `.toUtc()` normalizes the parse: the server may omit
+        // the trailing "Z" on `tariff_expired_at`, and subtracting a
+        // local-tz DateTime from a UTC `now` was leaking negative
+        // counts to every user with a non-zero UTC offset.
+        DateTime? expiryUtc;
         if (isPremium && user.tariffExpiredAt != null) {
-          // `.toUtc()` normalizes the parse result — server may or may not
-          // include the trailing "Z". Without this, a parsed local-tz
-          // DateTime subtracted from a UTC `now` gives the wrong day count
-          // on devices with non-zero UTC offset (every user in Central
-          // Asia), leaking negative "daysLeft" right after renewal.
-          final expiryDate = DateTime.parse(user.tariffExpiredAt!).toUtc();
-          final nowUtc = DateTime.now().toUtc();
-          daysLeft = expiryDate.difference(nowUtc).inDays;
+          expiryUtc = DateTime.parse(user.tariffExpiredAt!).toUtc();
         }
 
         return SafeArea(
@@ -188,7 +192,7 @@ class HomePage extends HookConsumerWidget {
                 // actually finish refetching — otherwise the spinner
                 // dismisses before the UI has the new data.
                 ref.invalidate(profileRatingProvider);
-                ref.invalidate(bannersProvider);
+                ref.invalidate(bannersControllerProvider);
                 ref.invalidate(top3UsersDayProvider);
 
                 Future<void> safe(Future<void> Function() op) async {
@@ -208,7 +212,7 @@ class HomePage extends HookConsumerWidget {
                       .read(progressProvider.notifier)
                       .fetchProgressFromBackend()),
                   safe(() => ref.read(profileRatingProvider.future)),
-                  safe(() => ref.read(bannersProvider.future)),
+                  safe(() => ref.read(bannersControllerProvider.future)),
                   safe(() => ref.read(top3UsersDayProvider.future)),
                 ]);
               },
@@ -223,7 +227,7 @@ class HomePage extends HookConsumerWidget {
                       children: [
                         HomeHeaderSection(
                           isPremium: isPremium,
-                          daysLeft: daysLeft,
+                          expiryUtc: expiryUtc,
                         ),
                         const SizedBox(height: 10),
                         const HomeBannerSection(),

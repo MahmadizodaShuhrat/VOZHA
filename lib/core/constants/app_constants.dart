@@ -14,8 +14,10 @@ class ApiConstants {
   /// WebSocket URLs for Battle mode
   static const String wsGameUrl =
       'wss://api.vozhaomuz.com/api/v1/ws/computation';
-  static const String wsLobbyUrl =
-      String.fromEnvironment('WS_LOBBY_URL', defaultValue: 'wss://api.vozhaomuz.com/api/v1/ws/public-rooms');
+  static const String wsLobbyUrl = String.fromEnvironment(
+    'WS_LOBBY_URL',
+    defaultValue: 'wss://api.vozhaomuz.com/api/v1/ws/public-rooms',
+  );
 
   /// Auth Endpoints (matches Unity auth_repository.dart)
   static const String authBase = '$apiVersion/auth';
@@ -82,6 +84,7 @@ class ApiConstants {
   /// File paths
   static const String filesResources = '/files/resources/get-resource/';
   static const String filesAvatars = '/files/avatars/';
+
   /// Resource access key — passed via --dart-define at build time
   static const String resourceSecret = String.fromEnvironment(
     'RESOURCE_SECRET',
@@ -114,7 +117,11 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = 'VozhaOmuz';
-  static const String appVersion = '1.0.0';
+
+  /// Keep in sync with `pubspec.yaml` `version:` (the part before `+`).
+  /// Sent as the `App-Version` header to the backend so banners and
+  /// other version-gated endpoints filter correctly.
+  static const String appVersion = '2.66.0';
 
   /// Game configuration
   static const int wordsPerGame = 10;
@@ -141,16 +148,21 @@ class AppConstants {
   /// when the backend is unreachable or for the very first render.
   static const int energyMax = 15;
   static const int energyStartingBalance = 15;
+
   /// Seconds per 1 energy regen. 1200s = 20 min → 5h for full refill.
   static const int energyRefillSeconds = 1200;
+
   /// Deducted once per completed game session.
   static const double energyBaseCost = 1.0;
+
   /// Deducted per wrong attempt within a game session.
   static const double energyMistakePenalty = 0.5;
+
   /// Minimum balance the user must have BEFORE starting a game. A session
   /// can accumulate up to 1 base cost + several 0.5 penalties, so we gate
   /// entry at 3 so they don't run out mid-game.
   static const double energyMinToPlay = 3.0;
+
   /// Coin price to top up energy to the max (15). Shown as a button in
   /// `energyPaywallDialog` — lets users trade hard-earned coins for a
   /// full refill instead of waiting 5h for natural regen.

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -119,7 +120,23 @@ class FcmService {
 
     // 5. Foreground messages — FCM does NOT auto-display these. We
     //    forward to flutter_local_notifications so the user sees a
-    //    real system notification even when the app is open.
+    //    real system notification even when the app is open. We also
+    //    re-initialize the plugin here to register our tap handler:
+    //    NotificationService.init() called `initialize()` earlier
+    //    without a callback, so foreground notification taps would
+    //    have been routed nowhere. The second call wins for the
+    //    callback (the underlying plugin uses one global instance).
+    await _localNotif.initialize(
+      settings: const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        iOS: DarwinInitializationSettings(
+          requestAlertPermission: true,
+          requestBadgePermission: true,
+          requestSoundPermission: true,
+        ),
+      ),
+      onDidReceiveNotificationResponse: _onLocalNotificationTap,
+    );
     FirebaseMessaging.onMessage.listen(_onForegroundMessage);
 
     // 6. Tapped from background → app brought back to foreground.
@@ -199,6 +216,26 @@ class FcmService {
     }
   }
 
+  /// Tap on a foreground notification (the one [_localNotif.show] put
+  /// in the system tray while the app was open). The payload is the
+  /// JSON-encoded `data` map from the original [RemoteMessage] — we
+  /// decode it back and emit through the same [onPushTapped] stream
+  /// so [PushNotificationRouter] handles foreground / background /
+  /// cold-start taps uniformly.
+  void _onLocalNotificationTap(NotificationResponse response) {
+    final raw = response.payload;
+    if (raw == null || raw.isEmpty) return;
+    debugPrint('🔔 [FCM fg-tap] payload=$raw');
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic> && decoded.isNotEmpty) {
+        _onPushTapped.add(decoded);
+      }
+    } catch (e) {
+      debugPrint('🔔 [FCM fg-tap] payload decode failed: $e');
+    }
+  }
+
   // ──────────────────────────── helpers ────────────────────────────
 
   /// Cache the token in SharedPreferences so the rest of the app (and
@@ -209,8 +246,13 @@ class FcmService {
     await prefs.setString('fcm_token', token);
   }
 
+  /// Round-trip safely through `flutter_local_notifications.payload`,
+  /// which is a single string field. JSON survives `=`, `&`, `?`,
+  /// spaces, and Unicode — the previous `key=value&key=value` scheme
+  /// silently corrupted any value containing those characters (which
+  /// includes URL-encoded promo codes and deep-link query strings).
   String _encodeData(Map<String, dynamic> data) {
     if (data.isEmpty) return '';
-    return data.entries.map((e) => '${e.key}=${e.value}').join('&');
+    return jsonEncode(data);
   }
 }

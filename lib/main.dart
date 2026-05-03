@@ -16,8 +16,10 @@ import 'core/l10n/tajik_cupertino_localizations.dart';
 import 'core/core.dart';
 import 'core/services/connectivity_service.dart';
 import 'core/services/deep_link_service.dart';
+import 'core/services/device_registration_service.dart';
 import 'core/services/fcm_service.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/push_notification_router.dart';
 import 'core/services/unity_ad_service.dart';
 import 'app/router/app_router.dart';
 import 'feature/auth/presentation/providers/locale_provider.dart';
@@ -81,9 +83,58 @@ Future<void> main() async {
     ),
   );
 
+  // Route push taps (background/cold start) to the right screen via
+  // PushNotificationRouter. The router uses the global navigatorKey
+  // wired below into MaterialApp so it can navigate without a
+  // BuildContext when handling cold-start pushes.
+  FcmService.instance.onPushTapped.listen(PushNotificationRouter.handle);
+
+  // FCM token can rotate at any time (cleared cache, reinstall, OS
+  // refresh). Whenever a fresh token arrives we re-POST it to the
+  // backend so reminders keep landing on the live device. The
+  // initial registration after login is triggered from the auth flow
+  // (see code_message.dart) — this listener handles refreshes only.
+  // We default to `tg` here because we don't have a BuildContext at
+  // bootstrap and easy_localization's persisted locale isn't read
+  // yet; a follow-up registration with the real locale lands as soon
+  // as the user opens any context-aware screen (locale listener).
+  FcmService.instance.tokenStream.listen((_) {
+    DeviceRegistrationService.instance.registerWithLocale('tg');
+  });
+
   await EasyLocalization.ensureInitialized();
   await StorageService.instance.init();
   await StorageService.instance.ensureFirstLaunchDate();
+
+  // Register the device's FCM token with the backend whenever the user
+  // transitions from logged-out to logged-in. We hook the global
+  // StorageService listener (which fires on `setAccessToken`) instead
+  // of registering from inside `code_message.dart`, because GoRouter's
+  // `refreshListenable` already unmounts the auth screen the moment
+  // the token is saved — anything that runs after the await in the
+  // login handler gets bailed out by `if (!mounted) return`. Hooking
+  // into StorageService bypasses widget lifecycle entirely.
+  String? lastSeenToken = await StorageService.instance.getAccessToken();
+  // Also register on cold start if user is already logged in — the
+  // listener won't fire because the token didn't *change*, it was
+  // already there when the listener attached.
+  if (lastSeenToken != null && lastSeenToken.isNotEmpty) {
+    unawaited(
+      DeviceRegistrationService.instance.registerWithLocale('tg'),
+    );
+  }
+  StorageService.instance.addListener(() async {
+    final current = await StorageService.instance.getAccessToken();
+    final wasLoggedOut = lastSeenToken == null || lastSeenToken!.isEmpty;
+    final isLoggedIn = current != null && current.isNotEmpty;
+    lastSeenToken = current;
+    if (wasLoggedOut && isLoggedIn) {
+      debugPrint('🔔 [device-register] login detected → registering');
+      unawaited(
+        DeviceRegistrationService.instance.registerWithLocale('tg'),
+      );
+    }
+  });
 
   // ── Non-critical init (don't block app start) ──
   // Run in parallel, with timeouts, so app opens even if these fail
@@ -172,6 +223,9 @@ class VozhaOmuzApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
+    // Hand the GoRouter to PushNotificationRouter so push taps that
+    // fired before this widget mounted (cold start) can navigate now.
+    PushNotificationRouter.router = router;
 
     // Arm the battle-invite deep link listener the first time the app
     // widget builds. `DeepLinkService.start` guards against double
@@ -179,6 +233,10 @@ class VozhaOmuzApp extends ConsumerWidget {
     // container + router synchronously here so the Future.microtask
     // doesn't reach back into `context` across an async gap.
     final container = ProviderScope.containerOf(context);
+    // PushNotificationRouter needs the container too — for stashing
+    // pending Battle invites and switching bottom-nav tabs from a
+    // BuildContext-less FCM listener.
+    PushNotificationRouter.container = container;
     Future.microtask(() {
       DeepLinkService.instance.start(
         container: container,

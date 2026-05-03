@@ -8,7 +8,13 @@ import 'package:vozhaomuz/feature/profile/presentation/screens/pay_premium_page.
 import 'package:vozhaomuz/shared/widgets/my_button.dart';
 
 class MySubscriptionPage extends HookConsumerWidget {
-  const MySubscriptionPage({super.key});
+  /// Optional promo code piped through from a push tap (e.g. the
+  /// `premium_expiry_*` reminders) — propagated into [PayPremiumPage]
+  /// so the user lands on the pricing screen with the discount field
+  /// already filled in.
+  final String? prefilledPromo;
+
+  const MySubscriptionPage({super.key, this.prefilledPromo});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -26,7 +32,10 @@ class MySubscriptionPage extends HookConsumerWidget {
             HapticFeedback.lightImpact();
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => PayPremiumPage()),
+              MaterialPageRoute(
+                builder: (_) =>
+                    PayPremiumPage(prefilledPromo: prefilledPromo),
+              ),
             );
           },
           child: Text(
