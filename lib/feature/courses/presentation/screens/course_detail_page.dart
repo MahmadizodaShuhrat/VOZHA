@@ -86,6 +86,19 @@ class _CourseDetailPageState extends ConsumerState<CourseDetailPage> {
     final completed = completedIds.length;
     final total = course.totalLessons;
 
+    // Once the user has watched the course intro video to the end,
+    // we collapse the hero + heading + "Continue" CTA. The intro is
+    // pure orientation material — re-showing it on every visit just
+    // pushes the lesson list off-screen for someone who's already
+    // ready to study.
+    final introWatched =
+        ref.watch(courseIntroWatchedProvider(widget.courseId)).asData?.value ??
+            false;
+    // No previewUrl in the JSON → nothing to play, so treat as "no
+    // intro to show" and collapse straight away.
+    final hasIntro = (course.previewUrl ?? '').isNotEmpty;
+    final showIntroBlock = hasIntro && !introWatched;
+
     return Column(
       children: [
         SafeArea(bottom: false, child: _TopBar()),
@@ -96,13 +109,19 @@ class _CourseDetailPageState extends ConsumerState<CourseDetailPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _HeroVideo(level: course.level),
-              const SizedBox(height: 14),
-              _CourseHeading(
-                title: course.title,
-                instructor: course.instructor,
-              ),
-              const SizedBox(height: 14),
+              if (showIntroBlock) ...[
+                _HeroVideo(
+                  level: course.level,
+                  courseId: widget.courseId,
+                  previewUrl: course.previewUrl,
+                ),
+                const SizedBox(height: 14),
+                _CourseHeading(
+                  title: course.title,
+                  instructor: course.instructor,
+                ),
+                const SizedBox(height: 14),
+              ],
               _DetailTabBar(current: _tab, onChanged: _setTab),
             ],
           ),
@@ -120,6 +139,8 @@ class _CourseDetailPageState extends ConsumerState<CourseDetailPage> {
                   completed: completed,
                   total: total,
                   courseId: widget.courseId,
+                  unlockedModules:
+                      unlockedModuleIndices(modules, completedIds),
                 ),
               ),
               _TabPage(child: _InfoTab(course: course)),
@@ -127,7 +148,11 @@ class _CourseDetailPageState extends ConsumerState<CourseDetailPage> {
             ],
           ),
         ),
-        _ContinueBar(currentLesson: _currentLessonOrNull(modules)),
+        if (showIntroBlock)
+          _ContinueBar(
+            currentLesson: _currentLessonOrNull(modules),
+            courseId: widget.courseId,
+          ),
       ],
     );
   }
@@ -236,11 +261,18 @@ class _ContentTab extends StatelessWidget {
   final int total;
   final String courseId;
 
+  /// Indices of modules the user is allowed to open. Computed by the
+  /// parent off the same `completedIds` set it already has, so we
+  /// don't subscribe to `courseProgressProvider` a second time and
+  /// rebuild this whole tab independently.
+  final Set<int> unlockedModules;
+
   const _ContentTab({
     required this.modules,
     required this.completed,
     required this.total,
     required this.courseId,
+    required this.unlockedModules,
   });
 
   @override
@@ -256,6 +288,7 @@ class _ContentTab extends StatelessWidget {
             index: i + 1,
             module: modules[i],
             courseId: courseId,
+            isLocked: !unlockedModules.contains(i),
           ),
           const SizedBox(height: 12),
         ],
@@ -1139,13 +1172,21 @@ class _TopBar extends StatelessWidget {
 
 // ─────────────────────────── hero video ───────────────────────────
 
-class _HeroVideo extends StatelessWidget {
+class _HeroVideo extends ConsumerWidget {
   final String level;
-  const _HeroVideo({required this.level});
+  final String courseId;
+  final String? previewUrl;
+
+  const _HeroVideo({
+    required this.level,
+    required this.courseId,
+    required this.previewUrl,
+  });
 
   @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final url = previewUrl;
+    final hero = ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: AspectRatio(
         aspectRatio: 16 / 9,
@@ -1196,9 +1237,7 @@ class _HeroVideo extends StatelessWidget {
                   color: Color(0xFF1D4ED8),
                   size: 44,
                 ),
-              )
-                  .animate(onPlay: (c) => c.repeat(reverse: true))
-                  .scaleXY(begin: 1.0, end: 1.07, duration: 1100.ms),
+              ),
             ),
             Positioned(
               top: 12,
@@ -1242,6 +1281,45 @@ class _HeroVideo extends StatelessWidget {
           ],
         ),
       ),
+    );
+
+    if (url == null || url.isEmpty) return hero;
+
+    return GestureDetector(
+      onTap: () async {
+        HapticFeedback.lightImpact();
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => LessonPlayerPage(
+              // Synthetic intro lesson — `courseId` is null on purpose
+              // so the auto-enrollment trigger doesn't count this watch
+              // (intro is meta-content about the course, not a lesson).
+              lesson: CourseLesson(
+                id: 'course_${courseId}_intro',
+                type: LessonType.video,
+                title: '',
+                durationLabel: '',
+                durationSeconds: 0,
+                status: LessonStatus.current,
+                video: LessonVideo(url: url),
+                words: const [],
+                games: const [],
+                questions: const [],
+                test: null,
+              ),
+              // Pressing the bottom CTA implies the user got through
+              // the intro. Mark watched so the next visit collapses
+              // the hero block straight to the lesson list.
+              onCompleted: () async {
+                await markCourseIntroWatched(ref, courseId);
+                if (!context.mounted) return;
+                Navigator.of(context).maybePop();
+              },
+            ),
+          ),
+        );
+      },
+      child: hero,
     );
   }
 }
@@ -1372,15 +1450,21 @@ class _ProgressCard extends StatelessWidget {
 /// Compact card representation of a module ("Урок"). Replaces the
 /// older expandable roadmap row — tap navigates to [LessonHubPage]
 /// where the user gets the main video, sub-lessons, and final test.
+///
+/// [isLocked] cascades from the previous module's completion state:
+/// the first module is always tappable; later modules stay disabled
+/// (lock icon, no navigation) until the prior one is fully done.
 class _ModuleHubCard extends StatelessWidget {
   final int index;
   final CourseModule module;
   final String courseId;
+  final bool isLocked;
 
   const _ModuleHubCard({
     required this.index,
     required this.module,
     required this.courseId,
+    this.isLocked = false,
   });
 
   @override
@@ -1390,34 +1474,43 @@ class _ModuleHubCard extends StatelessWidget {
         .length;
     final total = module.lessons.length;
     final pct = total == 0 ? 0.0 : completedLessons / total;
-    final isFinished = completedLessons == total && total > 0;
+    final isFinished =
+        !isLocked && completedLessons == total && total > 0;
 
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          HapticFeedback.lightImpact();
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => LessonHubPage(
-                courseId: courseId,
-                module: module,
-                moduleIndex: index - 1,
-              ),
-            ),
-          );
-        },
+        onTap: isLocked
+            ? null
+            : () {
+                HapticFeedback.lightImpact();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => LessonHubPage(
+                      courseId: courseId,
+                      module: module,
+                      moduleIndex: index - 1,
+                    ),
+                  ),
+                );
+              },
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: isFinished ? const Color(0xFFECFDF3) : Colors.white,
+            color: isLocked
+                ? const Color(0xFFF2F4F7)
+                : isFinished
+                    ? const Color(0xFFECFDF3)
+                    : Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isFinished
-                  ? const Color(0xFF12B76A).withValues(alpha: 0.4)
-                  : const Color(0xFFE4E7EC),
+              color: isLocked
+                  ? const Color(0xFFE4E7EC)
+                  : isFinished
+                      ? const Color(0xFF12B76A).withValues(alpha: 0.4)
+                      : const Color(0xFFE4E7EC),
               width: isFinished ? 1.5 : 1,
             ),
           ),
@@ -1427,9 +1520,11 @@ class _ModuleHubCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isFinished
-                      ? const Color(0xFF12B76A)
-                      : const Color(0xFF1D4ED8),
+                  color: isLocked
+                      ? const Color(0xFF98A2B3)
+                      : isFinished
+                          ? const Color(0xFF12B76A)
+                          : const Color(0xFF1D4ED8),
                   borderRadius: BorderRadius.circular(7),
                 ),
                 child: Text(
@@ -1454,48 +1549,56 @@ class _ModuleHubCard extends StatelessWidget {
                       style: GoogleFonts.inter(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
-                        color: const Color(0xFF0F172A),
+                        color: isLocked
+                            ? const Color(0xFF98A2B3)
+                            : const Color(0xFF0F172A),
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(3),
-                            child: LinearProgressIndicator(
-                              value: pct,
-                              minHeight: 5,
-                              backgroundColor: const Color(0xFFE4E7EC),
-                              valueColor: AlwaysStoppedAnimation(
-                                isFinished
-                                    ? const Color(0xFF12B76A)
-                                    : const Color(0xFF2E90FA),
+                    if (!isLocked) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(3),
+                              child: LinearProgressIndicator(
+                                value: pct,
+                                minHeight: 5,
+                                backgroundColor: const Color(0xFFE4E7EC),
+                                valueColor: AlwaysStoppedAnimation(
+                                  isFinished
+                                      ? const Color(0xFF12B76A)
+                                      : const Color(0xFF2E90FA),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '$completedLessons/$total',
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF667085),
+                          const SizedBox(width: 8),
+                          Text(
+                            '$completedLessons/$total',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF667085),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
               const SizedBox(width: 8),
               Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 16,
-                color: isFinished
-                    ? const Color(0xFF12B76A)
-                    : const Color(0xFF98A2B3),
+                isLocked
+                    ? Icons.lock_rounded
+                    : Icons.arrow_forward_ios_rounded,
+                size: isLocked ? 18 : 16,
+                color: isLocked
+                    ? const Color(0xFF98A2B3)
+                    : isFinished
+                        ? const Color(0xFF12B76A)
+                        : const Color(0xFF98A2B3),
               ),
             ],
           ),
@@ -1752,19 +1855,7 @@ class _RoadmapRow extends StatelessWidget {
           ),
         ),
       ],
-    )
-        .animate()
-        .fadeIn(
-          delay: Duration(milliseconds: 60 * indexInModule),
-          duration: 280.ms,
-        )
-        .slideX(
-          begin: 0.05,
-          end: 0,
-          delay: Duration(milliseconds: 60 * indexInModule),
-          duration: 280.ms,
-          curve: Curves.easeOutCubic,
-        );
+    );
   }
 }
 
@@ -1853,7 +1944,10 @@ class _LessonCard extends ConsumerWidget {
           if (lesson.video != null) {
             await Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => LessonPlayerPage(lesson: lesson),
+                builder: (_) => LessonPlayerPage(
+                  lesson: lesson,
+                  courseId: courseId,
+                ),
               ),
             );
             // When the user returns from the player (or the games
@@ -1987,12 +2081,13 @@ class _LessonCard extends ConsumerWidget {
 
 // ─────────────────────────── continue bar ───────────────────────────
 
-class _ContinueBar extends StatelessWidget {
+class _ContinueBar extends ConsumerWidget {
   final CourseLesson? currentLesson;
-  const _ContinueBar({required this.currentLesson});
+  final String courseId;
+  const _ContinueBar({required this.currentLesson, required this.courseId});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
       decoration: BoxDecoration(
@@ -2014,9 +2109,23 @@ class _ContinueBar extends StatelessWidget {
           buttonColor: const Color(0xFF2E90FA),
           backButtonColor: const Color(0xFF1570EF),
           padding: const EdgeInsets.symmetric(vertical: 12),
-          onPressed: () {
+          onPressed: () async {
             HapticFeedback.lightImpact();
-            // Will route into the lesson player once content/backend lands.
+            // Tapping "Continue" on the intro screen is the user's
+            // explicit "I'm done with the orientation, take me into
+            // the course" signal. Two things happen:
+            //   1. Mark intro watched → next visit collapses the
+            //      hero block straight to the lesson list.
+            //   2. Enroll them in this course → it shows up under
+            //      "My courses". No-op if they're already enrolled
+            //      somewhere else (the start-block gate handles
+            //      switching elsewhere).
+            await markCourseIntroWatched(ref, courseId);
+            final activeId =
+                await ref.read(activeCourseIdProvider.future);
+            if (activeId == null) {
+              await enrollInCourse(ref, courseId);
+            }
           },
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,

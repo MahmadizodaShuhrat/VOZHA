@@ -1,0 +1,94 @@
+{
+  "$comment": "Minimal second course used to test the single-active-course paywall logic. Real content TBD — for now we ship one module with two video sub-lessons so the start-block gate is reachable in QA.",
+  "id": "english_a2",
+  "title": "Английский A2",
+  "subtitle": "Промежуточный уровень",
+  "level": "A2 — Elementary",
+  "rating": 4.8,
+  "students": 320,
+  "language": "en",
+  "publishedAt": "2024-04-15",
+  "totalMinutes": 240,
+  "instructor": {
+    "name": "Саади Тоирзода",
+    "role": "Преподаватель",
+    "avatarUrl": null
+  },
+  "coverUrl": null,
+  "previewUrl": "https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4",
+  "description": "Курс продолжает программу A1 и переводит ученика на уровень A2 — Elementary. Темы: повседневные диалоги, прошедшее и будущее время, базовая грамматика для путешествий.",
+  "modules": [
+    {
+      "id": "a2_lesson1",
+      "title": "Прошедшее простое время",
+      "subtitle": "ELEMENTARY — УРОК 1",
+      "mainVideo": {
+        "url": "https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4",
+        "thumbnail": null
+      },
+      "lessons": [
+        {
+          "id": "a2_l1_past_intro",
+          "type": "video",
+          "title": "Введение в Past Simple",
+          "durationLabel": "6 мин 12 сек",
+          "durationSeconds": 372,
+          "status": "current",
+          "video": {
+            "url": "https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4",
+            "thumbnail": null
+          },
+          "words": [],
+          "games": [],
+          "questions": [],
+          "test": null
+        },
+        {
+          "id": "a2_l1_past_examples",
+          "type": "video",
+          "title": "Примеры в прошедшем времени",
+          "durationLabel": "5 мин 40 сек",
+          "durationSeconds": 340,
+          "status": "locked",
+          "video": {
+            "url": "https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4",
+            "thumbnail": null
+          },
+          "words": [],
+          "games": [],
+          "questions": [],
+          "test": null
+        }
+      ],
+      "finalTest": null
+    },
+    {
+      "id": "a2_lesson2",
+      "title": "Будущее время и планы",
+      "subtitle": "ELEMENTARY — УРОК 2",
+      "mainVideo": {
+        "url": "https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4",
+        "thumbnail": null
+      },
+      "lessons": [
+        {
+          "id": "a2_l2_future_intro",
+          "type": "video",
+          "title": "Will и going to",
+          "durationLabel": "7 мин 5 сек",
+          "durationSeconds": 425,
+          "status": "locked",
+          "video": {
+            "url": "https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4",
+            "thumbnail": null
+          },
+          "words": [],
+          "games": [],
+          "questions": [],
+          "test": null
+        }
+      ],
+      "finalTest": null
+    }
+  ]
+}

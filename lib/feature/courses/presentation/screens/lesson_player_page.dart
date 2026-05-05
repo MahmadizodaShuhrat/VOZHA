@@ -7,6 +7,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
 import 'package:vozhaomuz/core/services/screen_protection_service.dart';
 import 'package:vozhaomuz/feature/courses/data/models/course_fixture.dart';
+import 'package:vozhaomuz/feature/courses/presentation/providers/course_fixture_provider.dart';
+import 'package:vozhaomuz/feature/courses/presentation/providers/course_progress_provider.dart';
+import 'package:vozhaomuz/feature/courses/presentation/widgets/enrollment_celebration_dialog.dart';
 import 'package:vozhaomuz/shared/widgets/my_button.dart';
 
 /// Lesson player — plays the video associated with a [CourseLesson].
@@ -23,6 +26,13 @@ import 'package:vozhaomuz/shared/widgets/my_button.dart';
 class LessonPlayerPage extends ConsumerStatefulWidget {
   final CourseLesson lesson;
 
+  /// ID of the course this lesson belongs to. Used to track watched
+  /// videos for the auto-enrollment popup. Optional because some
+  /// callers (push notifications, deep links from outside the courses
+  /// flow) may not have the courseId handy — in that case the
+  /// enrollment trigger silently no-ops.
+  final String? courseId;
+
   /// Optional override fired after the user taps the bottom button.
   /// When omitted, the player handles continuation itself: lessons
   /// with `words[]` push [GamePage] (loading the words into
@@ -30,7 +40,12 @@ class LessonPlayerPage extends ConsumerStatefulWidget {
   /// pop back to the course detail page.
   final VoidCallback? onCompleted;
 
-  const LessonPlayerPage({super.key, required this.lesson, this.onCompleted});
+  const LessonPlayerPage({
+    super.key,
+    required this.lesson,
+    this.courseId,
+    this.onCompleted,
+  });
 
   @override
   ConsumerState<LessonPlayerPage> createState() => _LessonPlayerPageState();
@@ -66,6 +81,11 @@ class _LessonPlayerPageState extends ConsumerState<LessonPlayerPage> {
     }
 
     _loadWatchedFlag();
+    // Record this lesson video as "watched" for enrollment-tracking
+    // purposes. The 4th unique lesson the user opens flips them to
+    // "enrolled" and surfaces a celebration popup. Fire-and-forget —
+    // failure here must never block the actual video from loading.
+    _maybeTriggerEnrollment();
 
     final controller = video.assetPath != null
         ? VideoPlayerController.asset(video.assetPath!)
@@ -100,6 +120,49 @@ class _LessonPlayerPageState extends ConsumerState<LessonPlayerPage> {
     await prefs.setBool(_watchedPrefsKey, true);
     if (!mounted) return;
     setState(() => _hasFinishedOnce = true);
+    // Tell every consumer of `videoFullyWatchedProvider(this lessonId)`
+    // that the gate just flipped — the lesson hub uses it to unlock
+    // sub-lessons / the final test the moment the main video ends.
+    ref.invalidate(videoFullyWatchedProvider(widget.lesson.id));
+  }
+
+  /// Records this lesson as "opened" in the course's watched set, and
+  /// fires the celebration popup the moment the user crosses the
+  /// free-preview threshold (the 4th unique lesson video they open).
+  ///
+  /// No-ops when:
+  ///   - the player was opened without a [courseId] (e.g. deep link);
+  ///   - the user is already enrolled in this course (popup would be
+  ///     a duplicate);
+  ///   - the user is enrolled in a *different* course (we don't pull
+  ///     them away mid-flow — the start-block gate handles that case
+  ///     on the courses tab instead).
+  Future<void> _maybeTriggerEnrollment() async {
+    final courseId = widget.courseId;
+    if (courseId == null) return;
+    try {
+      final activeId =
+          await ref.read(activeCourseIdProvider.future);
+      if (activeId == courseId) return; // already enrolled here
+      if (activeId != null) return; // enrolled elsewhere, don't poach
+      final newCount = await recordVideoWatched(
+        ref,
+        courseId,
+        widget.lesson.id,
+      );
+      if (newCount <= kFreePreviewVideos) return;
+      if (!mounted) return;
+      final course = await ref.read(courseByIdProvider(courseId).future);
+      if (!mounted) return;
+      await showEnrollmentCelebrationDialog(
+        context,
+        courseTitle: course.title,
+      );
+      if (!mounted) return;
+      await enrollInCourse(ref, courseId);
+    } catch (_) {
+      // Enrollment is best-effort; it must never crash the player.
+    }
   }
 
   void _onTick() {

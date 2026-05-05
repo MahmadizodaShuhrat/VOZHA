@@ -1,6 +1,7 @@
 {
   "$comment": "Provisional backend index. Lists every course bundled with the app. Each entry points to a course.json under assets/courses/<id>/. Replace with a real API once the backend ships.",
   "courses": [
-    "english_a1"
+    "english_a1",
+    "english_a2"
   ]
 }

@@ -27,7 +27,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: '/home',
     debugLogDiagnostics: kDebugMode,
     refreshListenable: StorageService.instance,
-    redirect: (context, state) async {
+    redirect: (context, state) {
       // Intercept deep-link URIs before the normal matcher runs.
       // `vozhaomuz://battle?room_id=X` arrives with authority=battle and
       // path=/ — GoRouter sees no matching route and shows "Page not
@@ -46,8 +46,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return '/battle';
       }
 
+      // Sync read from the in-memory cache populated by `await
+      // StorageService.instance.init()` in main() before runApp().
+      // Awaiting `getAccessToken()` here previously caused the very
+      // first frame to land on `/home` (the initialLocation) before
+      // the redirect resolved, briefly flashing the home shell on
+      // cold start when the user wasn't actually logged in.
       final storage = StorageService.instance;
-      final token = await storage.getAccessToken();
+      final token = storage.cachedAccessToken;
       final isLoggedIn = token != null && token.isNotEmpty;
 
       final matchedLocation = state.matchedLocation;

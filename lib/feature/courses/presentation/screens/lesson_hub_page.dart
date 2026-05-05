@@ -1,7 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:vozhaomuz/feature/courses/data/models/course_fixture.dart';
@@ -9,6 +8,7 @@ import 'package:vozhaomuz/feature/courses/data/models/course_test_models.dart';
 import 'package:vozhaomuz/feature/courses/presentation/providers/course_progress_provider.dart';
 import 'package:vozhaomuz/feature/courses/presentation/screens/course_test_page.dart';
 import 'package:vozhaomuz/feature/courses/presentation/screens/lesson_player_page.dart';
+import 'package:vozhaomuz/feature/courses/presentation/widgets/locked_step_dialog.dart';
 import 'package:vozhaomuz/feature/games/presentation/screens/choose_learn_know_page.dart';
 
 /// Lesson hub — the page the user lands on after tapping a module on
@@ -40,6 +40,21 @@ class LessonHubPage extends ConsumerWidget {
     final allSubDone = completedSubLessons == module.lessons.length &&
         module.lessons.isNotEmpty;
 
+    // Main video gate. The synthetic player lesson ID we push when
+    // the user taps the hub's main video is `hub_main_video_<moduleId>`,
+    // and the player flips a SharedPreferences flag once the video
+    // hits its end. We read that flag here via [videoFullyWatchedProvider]
+    // so the sub-lesson cards stay locked (with a popup) until the
+    // user has actually watched the orientation video to the end.
+    final mainVideoLessonId = 'hub_main_video_${module.id}';
+    final mainVideoWatched = module.mainVideo == null
+        ? true // no main video to gate on → treat as "watched"
+        : ref
+                .watch(videoFullyWatchedProvider(mainVideoLessonId))
+                .asData
+                ?.value ??
+            false;
+
     final wordsLearned = module.lessons
         .where((l) => completedIds.contains(l.id))
         .fold<int>(0, (sum, l) => sum + l.words.length);
@@ -58,7 +73,11 @@ class LessonHubPage extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (module.mainVideo != null) ...[
-                      _MainVideoCard(video: module.mainVideo!),
+                      _MainVideoCard(
+                        video: module.mainVideo!,
+                        courseId: courseId,
+                        moduleId: module.id,
+                      ),
                       const SizedBox(height: 14),
                       Text(
                         'lesson_hub_watch_to_unlock'.tr(),
@@ -77,6 +96,7 @@ class LessonHubPage extends ConsumerWidget {
                             completedIds.contains(module.lessons[i].id),
                         courseId: courseId,
                         index: i,
+                        mainVideoWatched: mainVideoWatched,
                       ),
                       const SizedBox(height: 12),
                     ],
@@ -93,6 +113,12 @@ class LessonHubPage extends ConsumerWidget {
                       total: module.totalWords,
                       module: module,
                     ),
+                    const SizedBox(height: 14),
+                    // "Домашнее задание" — placeholder for the homework
+                    // flow. Real content is queued for a follow-up
+                    // ticket; for now we just acknowledge the tap so
+                    // the visual contract matches the reference design.
+                    _HomeworkCard(unlocked: allSubDone),
                   ],
                 ),
               ),
@@ -151,7 +177,13 @@ class LessonHubPage extends ConsumerWidget {
 
 class _MainVideoCard extends StatelessWidget {
   final LessonVideo video;
-  const _MainVideoCard({required this.video});
+  final String courseId;
+  final String moduleId;
+  const _MainVideoCard({
+    required this.video,
+    required this.courseId,
+    required this.moduleId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -168,8 +200,15 @@ class _MainVideoCard extends StatelessWidget {
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => LessonPlayerPage(
+                courseId: courseId,
                 lesson: CourseLesson(
-                  id: 'hub_main_video',
+                  // Per-module unique ID so each module's intro video
+                  // counts separately in the watched-videos set used
+                  // by the auto-enrollment trigger. Sharing the same
+                  // 'hub_main_video' across modules collapsed all
+                  // intros into a single watch and made the 4-video
+                  // enrollment threshold reachable inconsistently.
+                  id: 'hub_main_video_$moduleId',
                   type: LessonType.video,
                   title: 'lesson_hub_intro_title'.tr(),
                   durationLabel: '',
@@ -225,9 +264,7 @@ class _MainVideoCard extends StatelessWidget {
                       color: Color(0xFF1D4ED8),
                       size: 42,
                     ),
-                  )
-                      .animate(onPlay: (c) => c.repeat(reverse: true))
-                      .scaleXY(begin: 1.0, end: 1.06, duration: 1100.ms),
+                  ),
                 ),
               ],
             ),
@@ -244,11 +281,18 @@ class _SubLessonCard extends StatelessWidget {
   final String courseId;
   final int index;
 
+  /// Has the module's main intro video been watched all the way
+  /// through? Sub-lessons stay locked until this is true; tapping a
+  /// locked card opens [showLockedStepDialog] with a "watch the
+  /// intro video first" message instead of navigating.
+  final bool mainVideoWatched;
+
   const _SubLessonCard({
     required this.lesson,
     required this.isCompleted,
     required this.courseId,
     required this.index,
+    required this.mainVideoWatched,
   });
 
   @override
@@ -260,47 +304,77 @@ class _SubLessonCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         onTap: () {
           HapticFeedback.lightImpact();
+          if (!mainVideoWatched) {
+            showLockedStepDialog(
+              context,
+              title: 'locked_main_video_title'.tr(),
+              message: 'locked_main_video_message'.tr(),
+            );
+            return;
+          }
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => LessonPlayerPage(lesson: lesson),
+              builder: (_) => LessonPlayerPage(
+                lesson: lesson,
+                courseId: courseId,
+              ),
             ),
           );
         },
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: !mainVideoWatched
+                ? const Color(0xFFF2F4F7)
+                : Colors.white,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: isCompleted
-                  ? const Color(0xFF12B76A).withValues(alpha: 0.5)
-                  : const Color(0xFFE4E7EC),
+              color: !mainVideoWatched
+                  ? const Color(0xFFE4E7EC)
+                  : isCompleted
+                      ? const Color(0xFF12B76A).withValues(alpha: 0.5)
+                      : const Color(0xFFE4E7EC),
               width: isCompleted ? 1.5 : 1,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
+            boxShadow: !mainVideoWatched
+                ? null
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
           ),
           child: Row(
             children: [
-              // Thumbnail / play badge
+              // Thumbnail / play badge — desaturated to grey while the
+              // sub-lesson is locked behind the main-video gate so the
+              // user can read the locked state at a glance.
               Container(
                 width: 64,
                 height: 64,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF1D4ED8), Color(0xFF2E90FA)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  gradient: !mainVideoWatched
+                      ? const LinearGradient(
+                          colors: [Color(0xFFCDD5DF), Color(0xFF98A2B3)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
+                      : const LinearGradient(
+                          colors: [Color(0xFF1D4ED8), Color(0xFF2E90FA)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
                 ),
-                child: const Icon(Icons.play_arrow_rounded,
-                    color: Colors.white, size: 32),
+                child: Icon(
+                  !mainVideoWatched
+                      ? Icons.lock_rounded
+                      : Icons.play_arrow_rounded,
+                  color: Colors.white,
+                  size: !mainVideoWatched ? 26 : 32,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -314,7 +388,9 @@ class _SubLessonCard extends StatelessWidget {
                       style: GoogleFonts.inter(
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
-                        color: const Color(0xFF0F172A),
+                        color: !mainVideoWatched
+                            ? const Color(0xFF98A2B3)
+                            : const Color(0xFF0F172A),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -322,7 +398,7 @@ class _SubLessonCard extends StatelessWidget {
                       lesson.durationLabel,
                       style: GoogleFonts.inter(
                         fontSize: 12,
-                        color: const Color(0xFF667085),
+                        color: const Color(0xFF98A2B3),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -339,7 +415,11 @@ class _SubLessonCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (isCompleted) ...[
+              if (!mainVideoWatched) ...[
+                const SizedBox(width: 8),
+                const Icon(Icons.lock_rounded,
+                    color: Color(0xFF98A2B3), size: 20),
+              ] else if (isCompleted) ...[
                 const SizedBox(width: 8),
                 const Icon(Icons.check_circle_rounded,
                     color: Color(0xFF12B76A), size: 24),
@@ -365,11 +445,16 @@ class _FinalTestCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        // Always tappable for now — the lock icon is advisory. Wire
-        // back the `!unlocked` gate once we want a real progression
-        // requirement (e.g. "complete every sub-lesson first").
         onTap: () {
           HapticFeedback.lightImpact();
+          if (!unlocked) {
+            showLockedStepDialog(
+              context,
+              title: 'locked_final_test_title'.tr(),
+              message: 'locked_final_test_message'.tr(),
+            );
+            return;
+          }
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => CourseTestPage(testData: test),
@@ -532,6 +617,95 @@ class _WordsProgressCard extends StatelessWidget {
                       const AlwaysStoppedAnimation(Color(0xFF12B76A)),
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Homework card shown at the bottom of the lesson hub. Unlocks once
+/// every sub-lesson is completed (same gate as the final test). The
+/// homework content itself is not wired up yet — tapping the unlocked
+/// card just shows a placeholder snackbar so the UX matches the
+/// reference design while we wait for the homework data model.
+class _HomeworkCard extends StatelessWidget {
+  final bool unlocked;
+  const _HomeworkCard({required this.unlocked});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: unlocked
+            ? () {
+                HapticFeedback.lightImpact();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('lesson_hub_homework_soon'.tr()),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            : null,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: unlocked
+                ? const Color(0xFFFFFBEB)
+                : const Color(0xFFF5F5F4),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: unlocked
+                  ? const Color(0xFFFDB022).withValues(alpha: 0.5)
+                  : const Color(0xFFE4E7EC),
+              width: unlocked ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: unlocked
+                      ? const Color(0xFFFDB022).withValues(alpha: 0.18)
+                      : const Color(0xFFE4E7EC),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  unlocked
+                      ? Icons.assignment_rounded
+                      : Icons.lock_rounded,
+                  color: unlocked
+                      ? const Color(0xFFE48B0B)
+                      : const Color(0xFF98A2B3),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'lesson_hub_homework'.tr(),
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: unlocked
+                        ? const Color(0xFF1D2939)
+                        : const Color(0xFF98A2B3),
+                  ),
+                ),
+              ),
+              if (unlocked)
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 14,
+                  color: Color(0xFF98A2B3),
+                ),
             ],
           ),
         ),

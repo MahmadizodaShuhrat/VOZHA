@@ -136,6 +136,7 @@ flutter:
     - assets/translate/
     - assets/courses/
     - assets/courses/english_a1/
+    - assets/courses/english_a2/
     - assets/images/
     - assets/images/uimotivation/
     - assets/images/UIStepsSignUp/

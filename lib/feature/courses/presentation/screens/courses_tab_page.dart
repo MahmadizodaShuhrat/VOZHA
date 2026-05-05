@@ -2,48 +2,419 @@ import 'package:country_flags/country_flags.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:vozhaomuz/feature/courses/presentation/providers/course_fixture_provider.dart';
+import 'package:vozhaomuz/feature/courses/presentation/providers/course_progress_provider.dart';
 import 'package:vozhaomuz/feature/courses/presentation/screens/course_detail_page.dart';
 import 'package:vozhaomuz/shared/widgets/my_button.dart';
 
 /// Bottom-bar tab for the Courses section. Until the backend ships,
 /// this renders a single hand-built featured course card with mock
 /// data so we can iterate on the visual design.
-class CoursesTabPage extends StatelessWidget {
+class CoursesTabPage extends StatefulWidget {
   const CoursesTabPage({super.key});
+
+  @override
+  State<CoursesTabPage> createState() => _CoursesTabPageState();
+}
+
+class _CoursesTabPageState extends State<CoursesTabPage> {
+  int _segment = 0;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5FAFF),
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 24, 18, 0),
+              child: _Header(),
+            ),
+            const SizedBox(height: 18),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              child: _CoursesSegment(
+                current: _segment,
+                onChanged: (i) => setState(() => _segment = i),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                child: _segment == 0
+                    ? const _AllCoursesTab(key: ValueKey('all'))
+                    : const _MyCoursesTab(key: ValueKey('my')),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Pill-style two-button switcher between "All courses" and "My courses".
+class _CoursesSegment extends StatelessWidget {
+  final int current;
+  final ValueChanged<int> onChanged;
+
+  const _CoursesSegment({required this.current, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final labels = [
+      'courses_segment_all'.tr(),
+      'courses_segment_my'.tr(),
+    ];
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEF2F6),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: List.generate(labels.length, (i) {
+          final selected = i == current;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                onChanged(i);
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: selected ? Colors.white : Colors.transparent,
+                  borderRadius: BorderRadius.circular(9),
+                  boxShadow: selected
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.06),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  labels[i],
+                  style: GoogleFonts.inter(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                    color: selected
+                        ? const Color(0xFF0F172A)
+                        : const Color(0xFF667085),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+}
+
+/// Tab 1 — full catalogue (current featured course + coming-soon list).
+class _AllCoursesTab extends StatelessWidget {
+  const _AllCoursesTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(18, 0, 18, 100),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _FeaturedCourseCard(
+            courseId: 'english_a1',
+            title: 'Английский с 0',
+            author: 'Саади Тоирзода',
+            authorRole: 'Преподаватель',
+            totalDuration: '10 часов',
+            lessonsCount: 32,
+            studentsCount: 1240,
+            level: 'A1 — Beginner',
+            rating: 4.9,
+          ),
+          const SizedBox(height: 14),
+          // Second course used to exercise the single-active-course
+          // paywall gate. Real catalogue rendering will switch to
+          // `allCoursesProvider` once we have more than two
+          // hand-tuned cards.
+          const _FeaturedCourseCard(
+            courseId: 'english_a2',
+            title: 'Английский A2',
+            author: 'Саади Тоирзода',
+            authorRole: 'Преподаватель',
+            totalDuration: '4 часа',
+            lessonsCount: 3,
+            studentsCount: 320,
+            level: 'A2 — Elementary',
+            rating: 4.8,
+          ),
+          const SizedBox(height: 18),
+          _SectionTitle(text: 'courses_more_title'.tr()),
+          const SizedBox(height: 10),
+          const _ComingSoonCard(),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tab 2 — the course the user is currently enrolled in. Renders an
+/// empty placeholder until the user crosses the 4-video threshold in
+/// any course (the enrollment trigger fires from
+/// [LessonPlayerPage.initState]).
+class _MyCoursesTab extends ConsumerWidget {
+  const _MyCoursesTab({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final activeIdAsync = ref.watch(activeCourseIdProvider);
+    return activeIdAsync.when(
+      // While SharedPreferences resolves we show nothing rather than
+      // a flashing empty state — the lookup is sub-frame in practice.
+      loading: () => const SizedBox.shrink(),
+      error: (_, _) => const _MyCoursesEmpty(),
+      data: (activeId) {
+        if (activeId == null) return const _MyCoursesEmpty();
+        return _ActiveCourseSection(courseId: activeId);
+      },
+    );
+  }
+}
+
+class _MyCoursesEmpty extends StatelessWidget {
+  const _MyCoursesEmpty();
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(18, 0, 18, 100),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const SizedBox(height: 40),
+          Container(
+            width: 96,
+            height: 96,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF60A5FA).withValues(alpha: 0.18),
+                  const Color(0xFF1D4ED8).withValues(alpha: 0.10),
+                ],
+              ),
+            ),
+            child: const Icon(
+              Icons.school_rounded,
+              color: Color(0xFF1D4ED8),
+              size: 44,
+            ),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'courses_my_empty_title'.tr(),
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFF1D2939),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'courses_my_empty_subtitle'.tr(),
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              color: const Color(0xFF667085),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Card for the user's currently-enrolled course: title + progress
+/// bar + tap-to-resume. Reads completion data from the existing
+/// progress provider so the percentage stays in sync with the
+/// course-detail screen.
+class _ActiveCourseSection extends ConsumerWidget {
+  final String courseId;
+  const _ActiveCourseSection({required this.courseId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final courseAsync = ref.watch(courseByIdProvider(courseId));
+    final completedAsync = ref.watch(courseProgressProvider(courseId));
+
+    return courseAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, _) => const _MyCoursesEmpty(),
+      data: (course) {
+        final completed = completedAsync.asData?.value ?? const <String>{};
+        final total = course.totalLessons;
+        final pct = total == 0 ? 0.0 : completed.length / total;
+        final isFinished = completed.length >= total && total > 0;
+
+        return SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(18, 24, 18, 100),
+          padding: const EdgeInsets.fromLTRB(18, 0, 18, 100),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _Header(),
-              const SizedBox(height: 18),
-              const _FeaturedCourseCard(
-                title: 'Английский с 0',
-                author: 'Саади Тоирзода',
-                authorRole: 'Преподаватель',
-                totalDuration: '10 часов',
-                lessonsCount: 32,
-                studentsCount: 1240,
-                level: 'A1 — Beginner',
-                rating: 4.9,
+              Material(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(20),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            CourseDetailPage(courseId: courseId),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF2E90FA)
+                              .withValues(alpha: 0.16),
+                          blurRadius: 24,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: isFinished
+                                    ? const Color(0xFF12B76A)
+                                    : const Color(0xFF1D4ED8),
+                                borderRadius: BorderRadius.circular(7),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // Enrolled / completed checkmark — visual
+                                  // confirmation that the course "lives" in
+                                  // this list now and isn't a preview.
+                                  const Icon(
+                                    Icons.check_circle_rounded,
+                                    color: Colors.white,
+                                    size: 12,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    isFinished
+                                        ? 'courses_my_finished_badge'.tr()
+                                        : 'courses_my_active_badge'.tr(),
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                      letterSpacing: 0.4,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              '${(pct * 100).round()}%',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF1D4ED8),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          course.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF0F172A),
+                            height: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${course.instructor.name} • '
+                          '${course.instructor.role}',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: const Color(0xFF667085),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: pct,
+                            minHeight: 6,
+                            backgroundColor: const Color(0xFFE0EAFF),
+                            valueColor: AlwaysStoppedAnimation(
+                              isFinished
+                                  ? const Color(0xFF12B76A)
+                                  : const Color(0xFF2E90FA),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${completed.length} / $total '
+                          '${'courses_lessons_word'.tr()}',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: const Color(0xFF667085),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-              const SizedBox(height: 18),
-              _SectionTitle(text: 'courses_more_title'.tr()),
-              const SizedBox(height: 10),
-              const _ComingSoonCard(),
             ],
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -77,7 +448,11 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _FeaturedCourseCard extends StatelessWidget {
+class _FeaturedCourseCard extends ConsumerWidget {
+  /// ID of the course this card represents — passed straight to the
+  /// "Start course" button so the paywall gate knows which course the
+  /// user is trying to start.
+  final String courseId;
   final String title;
   final String author;
   final String authorRole;
@@ -88,6 +463,7 @@ class _FeaturedCourseCard extends StatelessWidget {
   final double rating;
 
   const _FeaturedCourseCard({
+    required this.courseId,
     required this.title,
     required this.author,
     required this.authorRole,
@@ -99,7 +475,11 @@ class _FeaturedCourseCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Show a check badge on the card when this course is the user's
+    // currently-enrolled one. Helps them spot it on the catalogue.
+    final activeId = ref.watch(activeCourseIdProvider).asData?.value;
+    final isEnrolled = activeId == courseId;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -127,17 +507,31 @@ class _FeaturedCourseCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF0F172A),
-                          height: 1.2,
-                          letterSpacing: -0.3,
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.inter(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF0F172A),
+                                height: 1.2,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                          ),
+                          if (isEnrolled) ...[
+                            const SizedBox(width: 6),
+                            const Icon(
+                              Icons.check_circle_rounded,
+                              color: Color(0xFF12B76A),
+                              size: 22,
+                            ),
+                          ],
+                        ],
                       ),
                       const SizedBox(height: 8),
                       _AuthorRow(name: author, role: authorRole),
@@ -166,13 +560,10 @@ class _FeaturedCourseCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          _StartButton(),
+          _StartButton(courseId: courseId),
         ],
       ),
-    )
-        .animate()
-        .fadeIn(duration: 400.ms)
-        .slideY(begin: 0.08, end: 0, duration: 400.ms, curve: Curves.easeOutCubic);
+    );
   }
 
   static String _formatStudents(int count) {
@@ -254,9 +645,7 @@ class _CourseIcon extends StatelessWidget {
                     ),
                   ),
                 ),
-              )
-                  .animate(onPlay: (c) => c.repeat(reverse: true))
-                  .scaleXY(begin: 1.0, end: 1.06, duration: 1100.ms),
+              ),
             ),
             Positioned(
               top: 8,
@@ -405,9 +794,14 @@ class _StatChip extends StatelessWidget {
   }
 }
 
-class _StartButton extends StatelessWidget {
+class _StartButton extends ConsumerWidget {
+  /// Course this button starts. The paywall gate uses this ID to
+  /// decide whether the user can open it for free or has to pay.
+  final String courseId;
+  const _StartButton({required this.courseId});
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return MyButton(
       width: double.infinity,
       depth: 4,
@@ -415,10 +809,23 @@ class _StartButton extends StatelessWidget {
       buttonColor: const Color(0xFF2E90FA),
       backButtonColor: const Color(0xFF1570EF),
       padding: const EdgeInsets.symmetric(vertical: 12),
-      onPressed: () {
+      onPressed: () async {
         HapticFeedback.lightImpact();
+        // Resolve the gate synchronously off the cached future so the
+        // tap feels instant. If the gate denies start, surface the
+        // paywall dialog instead of opening the course.
+        final canStart = await ref.read(
+          canStartCourseProvider(courseId).future,
+        );
+        if (!context.mounted) return;
+        if (!canStart) {
+          await _showIncompleteCourseDialog(context, ref);
+          return;
+        }
         Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const CourseDetailPage()),
+          MaterialPageRoute(
+            builder: (_) => CourseDetailPage(courseId: courseId),
+          ),
         );
       },
       child: Row(
@@ -440,6 +847,130 @@ class _StartButton extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Mock paywall shown when the user has an incomplete enrolled course
+/// and tries to start a different one. Replace the "Pay" button's
+/// onTap with the real billing flow once it lands.
+Future<void> _showIncompleteCourseDialog(
+  BuildContext context,
+  WidgetRef ref,
+) async {
+  final activeId = await ref.read(activeCourseIdProvider.future);
+  if (activeId == null || !context.mounted) return;
+  final activeCourse =
+      await ref.read(courseByIdProvider(activeId).future);
+  if (!context.mounted) return;
+
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(22, 26, 22, 18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFFFEF3C7),
+              ),
+              child: const Icon(
+                Icons.lock_rounded,
+                color: Color(0xFFE48B0B),
+                size: 34,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'courses_lock_title'.tr(),
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'courses_lock_subtitle'.tr(
+                args: [activeCourse.title, activeCourse.title],
+              ),
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: const Color(0xFF475569),
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(ctx).maybePop(),
+                    style: TextButton.styleFrom(
+                      padding:
+                          const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      foregroundColor: const Color(0xFF475569),
+                    ),
+                    child: Text(
+                      'courses_lock_cancel'.tr(),
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: MyButton(
+                    depth: 3,
+                    borderRadius: 12,
+                    buttonColor: const Color(0xFFFDB022),
+                    backButtonColor: const Color(0xFFE48B0B),
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 12),
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      // Real billing flow not wired yet — for now we
+                      // just close the dialog. When payments land,
+                      // kick into the purchase sheet here and only
+                      // call `enrollInCourse(targetCourseId)` after
+                      // a successful charge.
+                      Navigator.of(ctx).maybePop();
+                    },
+                    child: Center(
+                      child: Text(
+                        'courses_lock_pay'.tr(),
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _SectionTitle extends StatelessWidget {

@@ -235,6 +235,13 @@ class StorageService extends ChangeNotifier {
     return token;
   }
 
+  /// Synchronous read of the in-memory token cache populated by `init()`.
+  /// Used by GoRouter's redirect so the very first frame already knows
+  /// whether the user is logged in — avoids the "/home flashes for one
+  /// frame, then bounces to /auth/start" issue caused by awaiting the
+  /// async getter on cold start.
+  String? get cachedAccessToken => _accessTokenCache;
+
   Future<void> setAccessToken(String token) async {
     _accessTokenCache = token; // Cache immediately
     await _writeToken(StorageKeys.accessToken, _fallbackAccessTokenKey, token);

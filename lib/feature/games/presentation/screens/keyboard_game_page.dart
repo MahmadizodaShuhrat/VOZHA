@@ -529,47 +529,42 @@ class _KeyboardGamePageState extends ConsumerState<KeyboardGamePage> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children:
-                              row1.expand((char) {
-                                  final count = letterCounts[char]?.count ?? 0;
-                                  final enabled =
-                                      !iDontKnow && (_isLevel3 || count > 0);
-                                  final displayChar = _isCapsLock
-                                      ? char.toUpperCase()
-                                      : char;
-                                  return [
-                                    buildKeyBoard(
-                                      displayChar,
-                                      _isLevel3 ? null : letterCounts[char],
-                                      enabled
-                                          ? () {
-                                              if (!mounted) return;
-                                              HapticFeedback.lightImpact();
-                                              _playClickLetter();
-                                              if (!_isLevel3) {
-                                                ref
-                                                    .read(
-                                                      letterCountProvider
-                                                          .notifier,
-                                                    )
-                                                    .useLetter(
-                                                      currentIndex,
-                                                      char,
-                                                    );
-                                              }
-                                              ref
-                                                  .read(
-                                                    typedWordProvider.notifier,
-                                                  )
-                                                  .add(displayChar);
-                                            }
-                                          : null,
-                                      forceEnabled: _isLevel3 && !iDontKnow,
-                                    ),
-                                    //const SizedBox(width: 3.2),
-                                  ];
-                                }).toList()
-                                // ⛔️ Удаляем последний SizedBox
-                                ..removeLast(),
+                              row1.map((char) {
+                                final count = letterCounts[char]?.count ?? 0;
+                                final enabled =
+                                    !iDontKnow && (_isLevel3 || count > 0);
+                                final displayChar = _isCapsLock
+                                    ? char.toUpperCase()
+                                    : char;
+                                return buildKeyBoard(
+                                  displayChar,
+                                  _isLevel3 ? null : letterCounts[char],
+                                  enabled
+                                      ? () {
+                                          if (!mounted) return;
+                                          HapticFeedback.lightImpact();
+                                          _playClickLetter();
+                                          if (!_isLevel3) {
+                                            ref
+                                                .read(
+                                                  letterCountProvider
+                                                      .notifier,
+                                                )
+                                                .useLetter(
+                                                  currentIndex,
+                                                  char,
+                                                );
+                                          }
+                                          ref
+                                              .read(
+                                                typedWordProvider.notifier,
+                                              )
+                                              .add(displayChar);
+                                        }
+                                      : null,
+                                  forceEnabled: _isLevel3 && !iDontKnow,
+                                );
+                              }).toList(),
                         ),
                       ),
                       SizedBox(width: 3),
