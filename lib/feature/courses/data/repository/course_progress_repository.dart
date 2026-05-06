@@ -1,6 +1,4 @@
-import 'dart:convert';
-
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:vozhaomuz/feature/courses/data/repository/course_state_storage.dart';
 
 /// Per-course "which lessons has the user completed?" tracker.
 /// Implementations decide where the data lives. The rest of the app
@@ -16,38 +14,29 @@ abstract class CourseProgressRepository {
   Future<Set<String>> markCompleted(String courseId, String lessonId);
 }
 
-/// SharedPreferences-backed implementation used while the backend's
+/// JSON-file-backed implementation used while the backend's
 /// user-progress API is in development.
 ///
-/// Storage shape per course (key `course_progress_<id>`):
-/// `{"completed":["welcome","first_words", ...]}`.
+/// Each course gets a single file at
+/// `<application docs>/courses/<courseId>.json`. The `completed` key
+/// inside that JSON object holds the lesson-id list this repository
+/// owns; other repositories (enrollment, intro flag) write to other
+/// keys in the same file via [CourseStateStorage].
 class LocalCourseProgressRepository implements CourseProgressRepository {
   LocalCourseProgressRepository();
 
-  String _key(String courseId) => 'course_progress_$courseId';
+  CourseStateStorage get _storage => CourseStateStorage.instance;
 
   @override
   Future<Set<String>> load(String courseId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_key(courseId));
-    if (raw == null) return <String>{};
-    try {
-      final m = jsonDecode(raw) as Map<String, dynamic>;
-      final list = (m['completed'] as List?)?.cast<String>() ?? const [];
-      return list.toSet();
-    } catch (_) {
-      // Corrupt storage — start over rather than throw at the user.
-      return <String>{};
-    }
+    final data = await _storage.readCourse(courseId);
+    final list = (data['completed'] as List?)?.cast<String>() ?? const [];
+    return list.toSet();
   }
 
   @override
   Future<void> save(String courseId, Set<String> completed) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      _key(courseId),
-      jsonEncode({'completed': completed.toList()}),
-    );
+    await _storage.updateCourse(courseId, {'completed': completed.toList()});
   }
 
   @override

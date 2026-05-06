@@ -112,6 +112,7 @@ class LessonHubPage extends ConsumerWidget {
                       learned: wordsLearned,
                       total: module.totalWords,
                       module: module,
+                      courseId: courseId,
                     ),
                     const SizedBox(height: 14),
                     // "Домашнее задание" — placeholder for the homework
@@ -530,24 +531,39 @@ class _FinalTestCard extends StatelessWidget {
   }
 }
 
-class _WordsProgressCard extends StatelessWidget {
+class _WordsProgressCard extends ConsumerWidget {
   final int learned;
   final int total;
   final CourseModule module;
+  final String courseId;
 
   const _WordsProgressCard({
     required this.learned,
     required this.total,
     required this.module,
+    required this.courseId,
   });
 
-  void _openLearnFlow(BuildContext context) {
+  Future<void> _openLearnFlow(BuildContext context, WidgetRef ref) async {
     HapticFeedback.lightImpact();
     final preloaded = [
       for (final lesson in module.lessons)
         for (final w in lesson.words) w.toGameWord(),
     ];
     if (preloaded.isEmpty) return;
+    // Mark every sub-lesson that contributes words to this flow as
+    // completed before we hand off to the games. The games end with
+    // a `context.go('/home')` (not a pop), so an `await` on the
+    // pushed route would never resolve — we have to commit progress
+    // up front. This is "optimistic": the user has explicitly opened
+    // the learn flow with intent to study, so attribute the progress
+    // to the lessons whose words are being practised.
+    for (final lesson in module.lessons) {
+      if (lesson.words.isNotEmpty) {
+        await markLessonCompleted(ref, courseId, lesson.id);
+      }
+    }
+    if (!context.mounted) return;
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ChoseLearnKnowPage(
@@ -560,14 +576,14 @@ class _WordsProgressCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final pct = total == 0 ? 0.0 : (learned / total).clamp(0.0, 1.0);
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: total == 0 ? null : () => _openLearnFlow(context),
+        onTap: total == 0 ? null : () => _openLearnFlow(context, ref),
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(

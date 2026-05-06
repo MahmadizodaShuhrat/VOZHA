@@ -9,8 +9,10 @@ import 'package:vozhaomuz/feature/courses/data/models/course_fixture.dart';
 import 'package:vozhaomuz/feature/courses/presentation/providers/course_fixture_provider.dart';
 import 'package:vozhaomuz/feature/courses/presentation/providers/course_progress_provider.dart';
 import 'package:vozhaomuz/feature/courses/presentation/screens/certificate_pdf.dart';
+import 'package:vozhaomuz/feature/courses/presentation/screens/courses_tab_page.dart';
 import 'package:vozhaomuz/feature/courses/presentation/screens/lesson_hub_page.dart';
 import 'package:vozhaomuz/feature/courses/presentation/screens/lesson_player_page.dart';
+import 'package:vozhaomuz/feature/courses/presentation/widgets/enrollment_confirm_dialog.dart';
 import 'package:vozhaomuz/shared/widgets/my_button.dart';
 
 /// Course-detail screen with three tabs (Content / Info / Reviews).
@@ -2111,21 +2113,34 @@ class _ContinueBar extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(vertical: 12),
           onPressed: () async {
             HapticFeedback.lightImpact();
-            // Tapping "Continue" on the intro screen is the user's
-            // explicit "I'm done with the orientation, take me into
-            // the course" signal. Two things happen:
-            //   1. Mark intro watched → next visit collapses the
-            //      hero block straight to the lesson list.
-            //   2. Enroll them in this course → it shows up under
-            //      "My courses". No-op if they're already enrolled
-            //      somewhere else (the start-block gate handles
-            //      switching elsewhere).
+            // Confirmation step before we commit the enrollment —
+            // the user might have hit "Continue" by accident or just
+            // wanted to scroll past the hero. If they back out, we
+            // do nothing (intro stays visible, no enrollment, no
+            // navigation).
+            final course =
+                await ref.read(courseByIdProvider(courseId).future);
+            if (!context.mounted) return;
+            final confirmed = await showEnrollmentConfirmDialog(
+              context,
+              courseTitle: course.title,
+            );
+            if (!confirmed) return;
+            if (!context.mounted) return;
+            // Confirmed → collapse the intro on next visit, enroll the
+            // user (no-op if they're already enrolled in a different
+            // course — the paywall gate handles switching), flip the
+            // courses tab to "My courses", and pop back so the user
+            // lands directly on their new course card.
             await markCourseIntroWatched(ref, courseId);
             final activeId =
                 await ref.read(activeCourseIdProvider.future);
             if (activeId == null) {
               await enrollInCourse(ref, courseId);
             }
+            ref.read(coursesTabSegmentProvider.notifier).state = 1;
+            if (!context.mounted) return;
+            Navigator.of(context).maybePop();
           },
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,

@@ -165,10 +165,18 @@ Future<int> recordVideoWatched(
 
 /// Enroll the user in [courseId] and set it as the active course.
 /// Called after the celebration popup is shown on the 4th video.
+///
+/// Uses `ref.refresh(...future)` rather than `invalidate` so the new
+/// value lands in the cache before this method returns. Without that,
+/// watchers that mount *after* this call (e.g. the My-Courses tab the
+/// user switches to a beat later) sometimes still see the pre-enroll
+/// value because invalidation only schedules a recompute when there's
+/// already a live subscriber.
 Future<void> enrollInCourse(WidgetRef ref, String courseId) async {
   final repo = ref.read(courseEnrollmentRepositoryProvider);
   await repo.setActiveCourseId(courseId);
-  ref.invalidate(activeCourseIdProvider);
+  // ignore: unused_result
+  await ref.refresh(activeCourseIdProvider.future);
 }
 
 /// Clear the active enrollment. Currently only called for testing /
@@ -177,7 +185,8 @@ Future<void> enrollInCourse(WidgetRef ref, String courseId) async {
 Future<void> clearActiveCourse(WidgetRef ref) async {
   final repo = ref.read(courseEnrollmentRepositoryProvider);
   await repo.setActiveCourseId(null);
-  ref.invalidate(activeCourseIdProvider);
+  // ignore: unused_result
+  await ref.refresh(activeCourseIdProvider.future);
 }
 
 // ─────────────────────────── Module lock ───────────────────────────

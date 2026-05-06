@@ -1,6 +1,4 @@
-import 'dart:convert';
-
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:vozhaomuz/feature/courses/data/repository/course_state_storage.dart';
 
 /// Tracks which course the user is currently enrolled in (single active
 /// enrollment at a time) and how many lesson videos they've opened
@@ -36,47 +34,27 @@ abstract class CourseEnrollmentRepository {
   Future<void> setCourseIntroWatched(String courseId, bool value);
 }
 
-/// SharedPreferences-backed implementation. Storage layout:
-/// - `active_enrolled_course` → string (or absent)
-/// - `course_videos_watched_<courseId>` → JSON `{"watched":[...]}`
+/// JSON-file-backed implementation. Storage layout:
+/// - `<docs>/courses/_active.json` → `{"activeCourseId": "..."}`
+/// - `<docs>/courses/<courseId>.json` → per-course payload, this repo
+///   owns the `watched` (list) and `introWatched` (bool) keys.
 class LocalCourseEnrollmentRepository implements CourseEnrollmentRepository {
   LocalCourseEnrollmentRepository();
 
-  static const _activeKey = 'active_enrolled_course';
-  String _watchedKey(String courseId) => 'course_videos_watched_$courseId';
-  String _introWatchedKey(String courseId) =>
-      'course_intro_watched_$courseId';
+  CourseStateStorage get _storage => CourseStateStorage.instance;
 
   @override
-  Future<String?> getActiveCourseId() async {
-    final prefs = await SharedPreferences.getInstance();
-    final value = prefs.getString(_activeKey);
-    if (value == null || value.isEmpty) return null;
-    return value;
-  }
+  Future<String?> getActiveCourseId() => _storage.readActiveCourseId();
 
   @override
-  Future<void> setActiveCourseId(String? courseId) async {
-    final prefs = await SharedPreferences.getInstance();
-    if (courseId == null || courseId.isEmpty) {
-      await prefs.remove(_activeKey);
-    } else {
-      await prefs.setString(_activeKey, courseId);
-    }
-  }
+  Future<void> setActiveCourseId(String? courseId) =>
+      _storage.writeActiveCourseId(courseId);
 
   @override
   Future<Set<String>> loadWatchedVideos(String courseId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_watchedKey(courseId));
-    if (raw == null) return <String>{};
-    try {
-      final m = jsonDecode(raw) as Map<String, dynamic>;
-      final list = (m['watched'] as List?)?.cast<String>() ?? const [];
-      return list.toSet();
-    } catch (_) {
-      return <String>{};
-    }
+    final data = await _storage.readCourse(courseId);
+    final list = (data['watched'] as List?)?.cast<String>() ?? const [];
+    return list.toSet();
   }
 
   @override
@@ -87,27 +65,18 @@ class LocalCourseEnrollmentRepository implements CourseEnrollmentRepository {
     final current = await loadWatchedVideos(courseId);
     if (current.contains(lessonId)) return current;
     final updated = {...current, lessonId};
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      _watchedKey(courseId),
-      jsonEncode({'watched': updated.toList()}),
-    );
+    await _storage.updateCourse(courseId, {'watched': updated.toList()});
     return updated;
   }
 
   @override
   Future<bool> isCourseIntroWatched(String courseId) async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_introWatchedKey(courseId)) ?? false;
+    final data = await _storage.readCourse(courseId);
+    return (data['introWatched'] as bool?) ?? false;
   }
 
   @override
   Future<void> setCourseIntroWatched(String courseId, bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    if (value) {
-      await prefs.setBool(_introWatchedKey(courseId), true);
-    } else {
-      await prefs.remove(_introWatchedKey(courseId));
-    }
+    await _storage.updateCourse(courseId, {'introWatched': value});
   }
 }

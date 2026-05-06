@@ -4,26 +4,29 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:hooks_riverpod/legacy.dart';
 import 'package:vozhaomuz/feature/courses/presentation/providers/course_fixture_provider.dart';
 import 'package:vozhaomuz/feature/courses/presentation/providers/course_progress_provider.dart';
 import 'package:vozhaomuz/feature/courses/presentation/screens/course_detail_page.dart';
 import 'package:vozhaomuz/shared/widgets/my_button.dart';
 
+/// Active segment of the Courses tab (0 = all courses, 1 = my
+/// courses). Lifted out of widget state so callers from other pages
+/// (e.g. the Continue CTA on the course-detail screen) can switch
+/// the segment programmatically — `ref.read(coursesTabSegmentProvider
+/// .notifier).state = 1` — and have the page rebuild on the right
+/// segment when the user pops back to it.
+final coursesTabSegmentProvider = StateProvider<int>((ref) => 0);
+
 /// Bottom-bar tab for the Courses section. Until the backend ships,
 /// this renders a single hand-built featured course card with mock
 /// data so we can iterate on the visual design.
-class CoursesTabPage extends StatefulWidget {
+class CoursesTabPage extends ConsumerWidget {
   const CoursesTabPage({super.key});
 
   @override
-  State<CoursesTabPage> createState() => _CoursesTabPageState();
-}
-
-class _CoursesTabPageState extends State<CoursesTabPage> {
-  int _segment = 0;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final segment = ref.watch(coursesTabSegmentProvider);
     return Scaffold(
       backgroundColor: const Color(0xFFF5FAFF),
       body: SafeArea(
@@ -38,8 +41,9 @@ class _CoursesTabPageState extends State<CoursesTabPage> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 18),
               child: _CoursesSegment(
-                current: _segment,
-                onChanged: (i) => setState(() => _segment = i),
+                current: segment,
+                onChanged: (i) =>
+                    ref.read(coursesTabSegmentProvider.notifier).state = i,
               ),
             ),
             const SizedBox(height: 18),
@@ -48,7 +52,20 @@ class _CoursesTabPageState extends State<CoursesTabPage> {
                 duration: const Duration(milliseconds: 220),
                 switchInCurve: Curves.easeOutCubic,
                 switchOutCurve: Curves.easeInCubic,
-                child: _segment == 0
+                // Default alignment is `Alignment.center`, which
+                // visually pushes a single short card (My Courses
+                // with one active enrollment) to the middle of the
+                // tab area. Anchor children to the top instead so
+                // content always starts right under the segment
+                // switcher.
+                layoutBuilder: (currentChild, previousChildren) => Stack(
+                  alignment: Alignment.topCenter,
+                  children: <Widget>[
+                    ...previousChildren,
+                    ?currentChild,
+                  ],
+                ),
+                child: segment == 0
                     ? const _AllCoursesTab(key: ValueKey('all'))
                     : const _MyCoursesTab(key: ValueKey('my')),
               ),
@@ -802,6 +819,11 @@ class _StartButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // If this is the user's currently active course, swap the CTA
+    // copy from "Start course" to "Continue course" — they already
+    // joined it, so "Start" reads as a regression.
+    final activeId = ref.watch(activeCourseIdProvider).asData?.value;
+    final isEnrolled = activeId == courseId;
     return MyButton(
       width: double.infinity,
       depth: 4,
@@ -832,7 +854,9 @@ class _StartButton extends ConsumerWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'courses_start_button'.tr(),
+            isEnrolled
+                ? 'course_continue_button'.tr()
+                : 'courses_start_button'.tr(),
             style: GoogleFonts.inter(
               color: Colors.white,
               fontSize: 15,
